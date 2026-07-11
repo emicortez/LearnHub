@@ -39,6 +39,9 @@ ScaffoldingReadMe.txt
 # dotenv environment variables file
 .env
 
+# Personal/reference material not intended for the public repository
+JobOffers/
+
 # Others
 ~$*
 *~

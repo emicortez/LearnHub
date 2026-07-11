@@ -1,0 +1,22 @@
+# Normalize text files in the repository and keep source files consistent across OSes.
+* text=auto
+
+# Source, docs, and config files use LF in the repository and working tree.
+*.cs text eol=lf
+*.csproj text eol=lf
+*.slnx text eol=lf
+*.json text eol=lf
+*.config text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.http text eol=lf
+*.xml text eol=lf
+
+# Office documents and binary artifacts must never be line-ending normalized.
+*.docx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
