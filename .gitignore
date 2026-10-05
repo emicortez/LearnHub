@@ -42,6 +42,12 @@ ScaffoldingReadMe.txt
 # Personal/reference material not intended for the public repository
 JobOffers/
 
+# Local skill registry artifacts
+.atl/
+
+# Local code intelligence indexes
+.codegraph/
+
 # Others
 ~$*
 *~
@@ -58,3 +64,18 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# ------------------------------------------------------------
+# Personal study material (never part of the LearnHub product)
+# ------------------------------------------------------------
+tutoriales/
+best-practices/
+docs/lecciones/
+docs/weekly/
+docs/plan.md
+docs/progress.md
+docs/interview-prep.md
+docs/ai-roadmap.md
+
+# AI agent internal tracking
+odd/
