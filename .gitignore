@@ -79,3 +79,7 @@ docs/ai-roadmap.md
 
 # AI agent internal tracking
 odd/
+
+# Visual Studio user-specific files
+.vs/
+*.user
