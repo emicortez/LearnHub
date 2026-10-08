@@ -12,6 +12,10 @@
 *.yml text eol=lf
 *.http text eol=lf
 *.xml text eol=lf
+*.props text eol=lf
+*.targets text eol=lf
+.editorconfig text eol=lf
+.gitattributes text eol=lf
 
 # Office documents and binary artifacts must never be line-ending normalized.
 *.docx binary
