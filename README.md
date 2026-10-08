@@ -1,58 +1,71 @@
-# LearnHub — Interview Preparation Project
+# LearnHub
 
-> Plataforma de aprendizaje online (Udemy-style) construida para preparar entrevistas en el mercado laboral europeo y americano.
-> El objetivo no es lanzar un producto — es aprender haciendo con tecnologías reales de 2026.
+[![CI](https://github.com/emicortez/LearnHub/actions/workflows/ci.yml/badge.svg)](https://github.com/emicortez/LearnHub/actions/workflows/ci.yml)
 
-## Objetivo
+An online course platform (Udemy-style) with a multi-agent AI tutor, built with .NET 10, .NET Aspire and Azure.
 
-Estar listo para entrevistas senior .NET fullstack en **Europa y Estados Unidos** para **septiembre 2026**.
+The goal is a production-grade system: designed for thousands of concurrent users, fully testable, deployed to Azure on a free-first budget, and developed like a team product (pull requests, CI, ADRs).
 
-## La Estrategia
+## Status
 
-En lugar de estudiar teoría, construimos una aplicación real y compleja que nos obliga a aprender cada tecnología en contexto. Cada semana agrega un servicio, un patrón, o una funcionalidad nueva.
+Early stage. The engineering foundation is in place:
 
-## Documentación
+| Area | State |
+|---|---|
+| Build conventions (SDK pin, shared props, Central Package Management, analyzers, warnings as errors) | ✅ |
+| Aspire AppHost and shared service defaults (OpenTelemetry, health checks, resilience, service discovery) | ✅ |
+| Catalog API with `/health` and `/alive`, covered by integration tests | ✅ |
+| CI on every pull request: format, build, test | ✅ |
+| Domain building blocks, Catalog domain, persistence | Next |
 
-| Archivo | Descripción |
-|---------|-------------|
-| [Plan Maestro](docs/plan.md) | Cronograma completo — 18 semanas, día a día |
-| [Tech Stack](docs/tech-stack.md) | Todas las tecnologías con versiones y justificación |
-| [Arquitectura](docs/architecture.md) | Diseño del sistema completo de LearnHub |
-| [Progreso](docs/progress.md) | Tracker semanal — qué está hecho, qué falta |
-| [Prep Entrevistas](docs/interview-prep.md) | Temas por área con estado de preparación |
-| [Roadmap IA](docs/ai-roadmap.md) | Path específico de integración de IA |
+## Planned architecture
 
-## Semanas semanales
+| Bounded context | Responsibility |
+|---|---|
+| Identity | Users, roles, authentication (OAuth2/OIDC) |
+| Catalog | Courses, sections, lessons, instructors |
+| Enrollment | Enrollments and payments (outbox, saga, idempotency) |
+| Progress | Lesson progress and certificates |
+| AI Tutor | RAG over course content with Microsoft Agent Framework |
 
-Las semanas se documentan en [`docs/weekly/`](docs/weekly/) con:
-- Concepto teórico de la semana
-- Qué se construyó en LearnHub
-- Aprendizajes y gotchas
-- Preguntas de entrevista que cubre
+Each service follows Clean Architecture with DDD (`Domain ← Application ← Infrastructure ← Api`) and communicates through HTTP or asynchronous messages (Wolverine).
 
-## Stack de un vistazo
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Backend | .NET 10, ASP.NET Core Minimal APIs, EF Core, Wolverine |
+| Orchestration | .NET Aspire |
+| Data | PostgreSQL, Redis |
+| AI | Microsoft.Extensions.AI, Microsoft Agent Framework, vector search |
+| Frontend | React, TypeScript |
+| Cloud | Azure Container Apps, Bicep, `azd` |
+| Quality | xUnit v3 (Microsoft.Testing.Platform), `WebApplicationFactory`, Testcontainers, GitHub Actions |
+| Observability | OpenTelemetry |
+
+## Getting started
+
+Requirements: the .NET SDK pinned in [`global.json`](global.json) and Docker.
+
+```bash
+# Run the whole system with the Aspire dashboard
+dotnet run --project src/AppHost/LearnHub.AppHost
+
+# Run the tests
+dotnet test --solution LearnHub.slnx
+```
+
+## Repository layout
 
 ```
-Backend:  .NET 10 + ASP.NET Core + .NET Aspire
-Frontend: React 19 + Next.js 15 + TypeScript + Tailwind 4
-Gateway:  YARP
-DB:       PostgreSQL 17 + Redis 7 + Qdrant
-Msgs:     RabbitMQ → Azure Service Bus
-Cloud:    Azure (Container Apps / AKS, OpenAI, Blob, Key Vault)
-AI:       Semantic Kernel 1.x + RAG + Microsoft.Extensions.AI
-DevOps:   Docker + GitHub Actions + Terraform/Bicep
-Obs:      OpenTelemetry + Grafana + Seq
+src/
+  AppHost/LearnHub.AppHost                 Aspire orchestrator
+  BuildingBlocks/LearnHub.ServiceDefaults  Shared OpenTelemetry, health checks, resilience
+  Services/Catalog/LearnHub.Catalog.Api    Catalog service
+tests/
+  Services/Catalog/LearnHub.Catalog.Api.Tests
 ```
 
-## Servicios de LearnHub
+## Contributing
 
-```
-identity-service     → Auth, usuarios, roles (OAuth2/OIDC)
-catalog-service      → Cursos, categorías, instructores
-media-service        → Videos, uploads, streaming (Azure Blob)
-enrollment-service   → Compras, suscripciones
-progress-service     → Avance, certificados
-notification-service → Emails, push, real-time (SignalR)
-ai-service           → Recomendaciones, RAG, chatbot
-api-gateway          → YARP — entry point único
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md).
