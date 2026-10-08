@@ -3,6 +3,11 @@
 > Tecnologías elegidas por demanda real en el mercado de Europa y US.
 > Todo lo que está acá aparece en job descriptions de empresas top en 2026.
 > Se actualiza cuando sale algo importante.
+>
+> **Criterio de licencia:** priorizamos OSS real (MIT / Apache-2.0). Varias librerías
+> clásicas del ecosistema .NET pasaron a licencia comercial en 2025-2026
+> (MediatR, AutoMapper, MassTransit v9, FluentAssertions v8) — las evitamos o las
+> pinneamos en su última versión libre. Ver "Cambios clave" al final.
 
 ---
 
@@ -14,22 +19,26 @@
 | **ASP.NET Core** | 10 | Minimal APIs, Razor, gRPC, SignalR. Base de todo. |
 | **EF Core** | 10 | ORM para el write side. Migrations, interceptors, compiled models. Solo para writes en CQRS. |
 | **Dapper** | 2.x | SQL mapper ultra-rápido para el read side de CQRS. Sin overhead de change tracking. El read model en SQL puro. |
-| **MediatR** | 12.x | CQRS pipeline. Commands, queries, notifications, pipeline behaviors. |
-| **FluentValidation** | 11.x | Validación expresiva. Vive en Application, no contamina el domain. |
+| **Wolverine** | 9.x | **Reemplaza a MediatR.** CQRS in-process (commands, queries, behaviors) + mensajería distribuida en una sola librería MIT. Mismo CritterStack que Marten → outbox transaccional built-in. |
+| **FluentValidation** | 12.x | Validación expresiva. Vive en Application, no contamina el domain. Sigue Apache-2.0 (el rumor de comercialización no se cumplió). |
 | **ErrorOr** | 2.x | Result pattern. `ErrorOr<T>` en lugar de exceptions para flujo de errores esperados. Estándar en Clean Arch .NET 2026. |
-| **Carter** | 8.x | Organización de Minimal API en módulos. Alternativa limpia a controllers. |
+| **Carter** | 10.x | Organización de Minimal API en módulos. Alternativa limpia a controllers. |
 | **Scalar** | 2.x | OpenAPI UI para .NET 10. Reemplaza Swagger/Swashbuckle (deprecado como paquete oficial). |
-| **Mapster** | 7.x | Object mapping de alta performance. Source generators. Más rápido que AutoMapper. |
-| **Scrutor** | 5.x | Assembly scanning para DI. Decorators sin boilerplate. |
-| **Hangfire** | 2.x | Background jobs persistentes. Dashboard integrado. |
+| **Mapster** | 10.x | Object mapping de alta performance por source generators. MIT. **Reemplaza a AutoMapper** (comercial desde v15). Alternativa equivalente: Mapperly (Apache-2.0). |
+| **Scrutor** | 7.x | Assembly scanning para DI. Decorators sin boilerplate. |
+| **Hangfire** | 1.8.x | Background jobs persistentes. Dashboard integrado. Core LGPLv3 (gratis); Pro es opcional. |
 | **Quartz.NET** | 3.x | Jobs con expresiones cron complejas. Alternativa a Hangfire para scheduling avanzado. |
 | **Serilog** | 4.x | Structured logging. Sinks para Seq, OpenTelemetry, Azure Monitor. |
-| **BenchmarkDotNet** | 0.14.x | Profiling de performance con rigor estadístico. |
+| **BenchmarkDotNet** | 0.15.x | Profiling de performance con rigor estadístico. |
 | **Bogus** | 35.x | Generación de datos realistas para tests y seeds. |
 
 ### Por qué Dapper en el read side
 
 EF Core tiene overhead de change tracking, materialización, y lazy loading que no necesitás cuando solo leés. En CQRS, el read model ejecuta SQL directo con Dapper y retorna DTOs. El resultado: queries de lectura 3-10x más rápidos. Un tech lead que usa EF Core para todo no entiende CQRS de verdad.
+
+### Por qué Wolverine y no MediatR
+
+MediatR pasó a licencia comercial (RPL-1.5 + comercial, Lucky Penny Software) desde la v13 — gratis solo si facturás menos de $5M/año, y la última versión libre (12.x) está congelada. En vez de heredar esa mina, usamos **Wolverine** (MIT): hace el mismo dispatch in-process de CQRS *y* la mensajería distribuida entre servicios, todo en una librería. Es del mismo CritterStack que Marten, así que el patrón **Outbox** sobre PostgreSQL te sale built-in en vez de pegar dos librerías. Tradeoff: Wolverine es más opinado que MediatR (descubre handlers por convención, no por `IRequestHandler<>`) — en un proyecto nuevo eso es menos boilerplate, no fricción.
 
 ### Por qué ErrorOr y no exceptions
 
@@ -41,14 +50,14 @@ Las exceptions son para situaciones excepcionales — no para "el email ya exist
 
 | Tecnología | Versión | Por qué |
 |-----------|---------|---------|
-| **MassTransit** | 8.x | Abstracción de messaging sobre RabbitMQ/Azure Service Bus. Sagas incluidas, inbox/outbox built-in. |
+| **Wolverine** | 9.x | Capa de mensajería + sagas + outbox/inbox sobre RabbitMQ/Azure Service Bus. MIT. **Reemplaza a MassTransit** (v9 es comercial; v8 solo con parches de seguridad hasta fin de 2026). |
 | **RabbitMQ** | 4.x | Broker local y staging. Event-driven entre servicios. |
 | **Azure Service Bus** | — | Broker en cloud production. Topics, subscriptions, dead-letter, sessions. |
-| **Dapr** | 1.x | Distributed Application Runtime. Building blocks declarativos: pub/sub, service invocation, state, secrets, bindings. Se integra nativamente con .NET Aspire. |
+| **Dapr** | 1.x | Distributed Application Runtime. Building blocks declarativos: pub/sub, service invocation, state, secrets, bindings. Se integra nativamente con Aspire. |
 
 ### Por qué Dapr
 
-Dapr abstrae los problemas de infraestructura distribuida. En lugar de configurar el cliente de RabbitMQ, el SDK de Redis, y el cliente de Key Vault por separado, Dapr expone una API uniforme via HTTP/gRPC sidecar. Cambiás de RabbitMQ a Azure Service Bus sin tocar código. En 2026, Dapr + .NET Aspire es la combinación que Microsoft empuja para cloud-native enterprise.
+Dapr abstrae los problemas de infraestructura distribuida. En lugar de configurar el cliente de RabbitMQ, el SDK de Redis, y el cliente de Key Vault por separado, Dapr expone una API uniforme via HTTP/gRPC sidecar. Cambiás de RabbitMQ a Azure Service Bus sin tocar código. En 2026, Dapr + Aspire es la combinación que Microsoft empuja para cloud-native enterprise.
 
 ---
 
@@ -56,8 +65,8 @@ Dapr abstrae los problemas de infraestructura distribuida. En lugar de configura
 
 | Tecnología | Versión | Por qué |
 |-----------|---------|---------|
-| **OpenIddict** | 5.x | OAuth2/OIDC server embebido en .NET. Ideal para proyectos donde el IdP vive en el mismo stack. |
-| **Keycloak** | 25.x | IdP enterprise como servicio separado. SSO, LDAP/AD integration, roles, realm management. Para cuando necesitás un IdP de verdad. |
+| **OpenIddict** | 7.x | OAuth2/OIDC server embebido en .NET. Ideal para proyectos donde el IdP vive en el mismo stack. |
+| **Keycloak** | 26.x | IdP enterprise como servicio separado. SSO, LDAP/AD integration, roles, realm management. Para cuando necesitás un IdP de verdad. |
 
 ### OpenIddict vs Keycloak
 
@@ -69,7 +78,7 @@ OpenIddict: lo buildás vos, vive en tu stack, control total. Keycloak: servicio
 
 | Tecnología | Versión | Por qué |
 |-----------|---------|---------|
-| **Marten** | 7.x | Event store + document DB sobre PostgreSQL. No necesitás una DB extra. El estado es el stream de eventos. Built-in projections para read models. |
+| **Marten** | 9.x | Event store + document DB sobre PostgreSQL. Core MIT. No necesitás una DB extra. El estado es el stream de eventos. Built-in projections para read models. Combina con Wolverine (mismo CritterStack). |
 | **EventStoreDB** | 24.x | Base de datos diseñada exclusivamente para Event Sourcing. Para cuando necesitás el máximo poder. |
 
 ### Por qué Marten primero
@@ -82,14 +91,14 @@ Marten corre sobre PostgreSQL — la misma DB que ya tenés. Aprendés Event Sou
 
 | Tecnología | Versión | Por qué |
 |-----------|---------|---------|
-| **xUnit** | 2.9.x | Framework de tests estándar en .NET. |
-| **FluentAssertions** | 7.x | Assertions legibles. `result.Should().BeEquivalentTo(expected)`. |
+| **xUnit** | v3 (4.x) | Framework de tests estándar en .NET. v3 es el default para proyectos nuevos: paralelo por defecto, Native AOT, Microsoft Testing Platform. |
+| **FluentAssertions** | 7.x | Assertions legibles. **Pin deliberado a 7.x** (Apache-2.0, gratis): la v8 pasó a licencia comercial (Xceed). Alternativas OSS: AwesomeAssertions, Shouldly. |
 | **Testcontainers** | 4.x | Levanta PostgreSQL, Redis, RabbitMQ reales en Docker para integration tests. |
-| **WireMock.Net** | 1.x | HTTP mocking para tests de integración con servicios externos. |
+| **WireMock.Net** | 2.x | HTTP mocking para tests de integración con servicios externos. |
 | **Pact.Net** | 5.x | Consumer-driven contract testing entre microservicios. |
-| **ArchUnitNET** | 0.22.x | Architecture fitness functions. Escribe tests que fallan si violás la Dependency Rule. |
+| **ArchUnitNET** | 0.13.x | Architecture fitness functions. Escribe tests que fallan si violás la Dependency Rule. |
 | **Stryker.NET** | 4.x | Mutation testing. Muta el código y verifica que los tests lo detecten. Mide calidad real de tests. |
-| **k6** | 0.55.x | Load testing estándar de industria. Scripts en JS, métricas en tiempo real, integra con Grafana. |
+| **k6** | 2.x | Load testing estándar de industria. Scripts en JS, métricas en tiempo real, integra con Grafana. |
 | **Bogus** | 35.x | Datos falsos realistas para tests y seeds. |
 
 ### Por qué ArchUnitNET
@@ -118,15 +127,15 @@ Coverage del 80% puede ser falso. Stryker muta el código — cambia `>` por `>=
 
 | Tecnología | Versión | Por qué |
 |-----------|---------|---------|
-| **.NET Aspire** | 9.x / 13.x | **EL framework para microservicios .NET en 2026.** Service discovery, telemetría, dashboards, Dapr integration — todo automático. |
-| **Docker** | 27.x | Contenedores para todos los servicios. |
+| **Aspire** | 13.x | **EL framework para microservicios .NET en 2026.** Service discovery, telemetría, dashboards, Dapr integration — todo automático. Versionado desacoplado de .NET (~un major/año) y renombrado de ".NET Aspire" a "Aspire". |
+| **Docker** | 29.x | Contenedores para todos los servicios. |
 | **Docker Compose** | — | Orquestación local. |
-| **Kubernetes** | 1.32.x | Orquestación en cloud. |
-| **Helm** | 3.x | Package manager de K8s. Deployments declarativos y versionados. |
-| **ArgoCD** | 2.x | GitOps — el estado del cluster vive en Git. ArgoCD aplica automáticamente los cambios. |
+| **Kubernetes** | 1.34.x | Orquestación en cloud. |
+| **Helm** | 3.x | Package manager de K8s. Deployments declarativos y versionados. Helm 4 ya salió (GA nov 2025); Helm 3 con soporte hasta ~feb 2027 — planificar migración. |
+| **ArgoCD** | 3.x | GitOps — el estado del cluster vive en Git. ArgoCD aplica automáticamente los cambios. |
 | **GitHub Actions** | — | CI/CD pipelines. |
 | **Bicep** | — | Infrastructure as Code Microsoft-native para Azure. |
-| **Terraform** | 1.x | IaC multi-cloud. Para cuando el stack cruza providers. |
+| **Terraform** | 1.x | IaC multi-cloud. Licencia BSL 1.1 (no OSS) — si importa, **OpenTofu** (MPL-2.0, drop-in) es la alternativa libre. |
 
 ---
 
@@ -135,8 +144,8 @@ Coverage del 80% puede ser falso. Stryker muta el código — cambia `>` por `>=
 | Tecnología | Versión | Por qué |
 |-----------|---------|---------|
 | **OpenTelemetry** | — | Estándar de observabilidad — logs, metrics, traces. Vendor-neutral. |
-| **Grafana** | 11.x | Dashboards de métricas + alertas. |
-| **Seq** | 2024.x | Log aggregation para desarrollo. UI de queries sobre logs estructurados. |
+| **Grafana** | 13.x | Dashboards de métricas + alertas. |
+| **Seq** | 2026.x | Log aggregation para desarrollo. UI de queries sobre logs estructurados. Free tier single-user. |
 | **Azure Monitor + App Insights** | — | Observabilidad en Azure production. |
 | **Trivy** | — | Security scanning de imágenes Docker en el pipeline. |
 | **OWASP ZAP** | — | Security testing dinámico (DAST) en pipeline de staging. |
@@ -153,8 +162,7 @@ Coverage del 80% puede ser falso. Stryker muta el código — cambia `>` por `>=
 | **Azure Key Vault** | Secrets en producción. Nunca en el código. |
 | **Azure App Configuration** | Configuración centralizada + feature flags. |
 | **Azure Service Bus** | Messaging production. Topics, dead-letter, sessions. |
-| **Azure OpenAI Service** | GPT-4o, embeddings con compliance y SLAs enterprise. |
-| **Azure AI Foundry** | Hub unificado para AI projects (2025). |
+| **Microsoft Foundry (Azure AI Foundry)** | Modelos GPT-5.x + embeddings con compliance y SLAs enterprise. Hub unificado para AI projects. |
 | **Azure Container Registry** | Docker images en producción. |
 | **Azure Front Door** | CDN + WAF + global load balancing para el frontend. |
 | **Azure Monitor + App Insights** | Métricas, alertas, traces en producción. |
@@ -165,12 +173,12 @@ Coverage del 80% puede ser falso. Stryker muta el código — cambia `>` por `>=
 
 | Tecnología | Versión | Descripción |
 |-----------|---------|-------------|
-| **Microsoft AgentFramework** | 1.0 | **EL framework de agentes Microsoft para .NET — GA abril 2026.** Fusión de Semantic Kernel + AutoGen. Orquestación multi-agent, MCP nativo, enterprise-ready. |
-| **Microsoft.Extensions.AI** | 9.x | Abstracción estándar de AI. Cambiás de Azure OpenAI a Ollama sin tocar código de negocio. |
-| **Azure OpenAI** | — | GPT-4o + embeddings en Azure. Rate limiting, compliance, SLAs. |
-| **Qdrant** | 1.x | Vector DB para RAG y semantic search. |
+| **Microsoft Agent Framework** | 1.0 | **EL framework de agentes Microsoft para .NET — GA 3 abril 2026.** Fusión de Semantic Kernel + AutoGen. Orquestación multi-agent, MCP y A2A nativos, enterprise-ready. |
+| **Microsoft.Extensions.AI** | 10.x | Abstracción estándar de AI (versionada con .NET 10). Cambiás de Azure OpenAI a Ollama sin tocar código de negocio. |
+| **Azure OpenAI (Foundry)** | GPT-5.x | Serie GPT-5.x + embeddings en Azure. Rate limiting, compliance, SLAs. (GPT-4o quedó obsoleto). |
+| **Qdrant** | 1.x | Vector DB para RAG y semantic search. Apache-2.0. |
 | **Ollama** | latest | Modelos locales (Phi-4, Llama 3.x) para desarrollo sin costos. |
-| **MCP (Model Context Protocol)** | spec 2025 | Estándar para conectar agentes con herramientas externas. Implementado nativamente en AgentFramework. |
+| **MCP (Model Context Protocol)** | spec 2026-07-28 | Estándar para conectar agentes con herramientas externas. Implementado nativamente en Agent Framework. |
 
 ---
 
@@ -178,19 +186,20 @@ Coverage del 80% puede ser falso. Stryker muta el código — cambia `>` por `>=
 
 | Tecnología | Versión | Por qué |
 |-----------|---------|---------|
-| **React** | 19 | 44.7% market share. Server Components estables, use() hook. |
-| **Next.js** | 15 | SSR, SSG, RSC, App Router. Estándar para React en producción. |
-| **TypeScript** | 5.7+ | Obligatorio en cualquier proyecto serio. |
+| **React** | 19 | Server Components estables, use() hook. Pin **≥19.2.1** (parche de seguridad). |
+| **React Compiler** | 1.x | Estable y on-by-default en apps nuevas. Auto-memoización → hace obsoletos la mayoría de `useMemo`/`useCallback`/`React.memo` manuales. |
+| **Next.js** | 16 | SSR, SSG, RSC (default), App Router. Estándar para React en producción. |
+| **TypeScript** | 7.0 | Compilador nativo en Go ("tsgo"), ~8-12x más rápido en builds. Salto grande desde 5.x. |
 | **Tailwind CSS** | 4.x | CSS-first, sin config. Estándar de facto. |
-| **Vite** | 6.x | Build tool ultra-rápido para SPA. |
+| **Vite** | 8.x | Build tool ultra-rápido. Default sobre Rolldown + Oxc (reemplaza esbuild/Rollup). |
 | **TanStack Query** | 5.x | Server state — cache, refetch, mutations, optimistic updates. |
 | **Zustand** | 5.x | Client state. Simple, sin boilerplate. |
-| **React Hook Form + Zod** | 7.x / 3.x | Forms + validación type-safe. |
-| **Shadcn/ui** | latest | Componentes headless sobre Radix. Copy-paste, control total. |
-| **Framer Motion** | 12.x | Animaciones declarativas. Para UX de producto real. |
-| **i18next** | 24.x | Internacionalización. Crítico para el mercado europeo multiidioma. |
-| **Storybook** | 8.x | Componentes en aislamiento. Documentación visual + testing. |
-| **Vitest** | 3.x | Unit testing integrado con Vite. |
+| **React Hook Form + Zod** | 7.x / 4.x | Forms + validación type-safe. Zod 4 (~14x más rápido en parsing). |
+| **Shadcn/ui** | CLI v4 | Componentes headless sobre Radix. Copy-paste, control total. Tailwind v4 + React 19 por defecto. |
+| **Motion** | 13.x | Animaciones declarativas. **Renombrado de Framer Motion** — paquete `motion`, import `motion/react`. |
+| **i18next** | 26.x | Internacionalización. Crítico para el mercado europeo multiidioma. |
+| **Storybook** | 10.x | Componentes en aislamiento. Documentación visual + testing. ESM-only. |
+| **Vitest** | 4.x | Unit testing integrado con Vite. |
 | **React Testing Library** | 16.x | Tests orientados al comportamiento del usuario, no a implementación. |
 | **Playwright** | 1.x | E2E testing. Estándar de industria. |
 
@@ -200,10 +209,10 @@ Coverage del 80% puede ser falso. Stryker muta el código — cambia `>` por `>=
 
 | Tecnología | Versión | Uso |
 |-----------|---------|-----|
-| **PostgreSQL** | 17 | DB principal. Cada servicio tiene la suya (database per service). |
-| **Redis** | 7.x | Cache, sesiones, pub/sub, rate limiting, leaderboards. |
-| **Qdrant** | 1.x | Vector DB para embeddings, RAG, semantic search. |
-| **MongoDB** | 7.x | Documentos no relacionales. Logs, eventos, configuración dinámica. |
+| **PostgreSQL** | 18 | DB principal. Cada servicio tiene la suya (database per service). Async I/O, skip scan, uuidv7. |
+| **Redis** | 8.x | Cache, sesiones, pub/sub, rate limiting, leaderboards. Tri-licencia con AGPLv3 (OSS de nuevo desde 8.0). Alternativa neutral: **Valkey** (BSD). |
+| **Qdrant** | 1.x | Vector DB para embeddings, RAG, semantic search. Apache-2.0. |
+| **MongoDB** | 8.x | Documentos no relacionales. Logs, eventos, configuración dinámica. Licencia SSPL (no OSI); alternativa Apache: FerretDB. |
 
 ---
 
@@ -324,7 +333,7 @@ Un tech lead/arquitecto tiene que conocer estos patrones, saber cuándo aplicarl
 | **Proxy** | Estructural | Intermediario. Caching, lazy loading, logging. |
 | **Adapter** | Estructural | Traducir una interfaz a otra. ACL en DDD. |
 | **Facade** | Estructural | Interfaz simple para subsistema complejo. |
-| **Chain of Responsibility** | Comportamiento | Pipeline de handlers. MediatR behaviors, middleware. |
+| **Chain of Responsibility** | Comportamiento | Pipeline de handlers. Wolverine behaviors, middleware. |
 | **Specification** | Dominio | Reglas de negocio combinables con AND/OR/NOT. |
 | **Template Method** | Comportamiento | Esqueleto de algoritmo. Pasos en subclases. |
 
@@ -337,7 +346,7 @@ Un tech lead/arquitecto tiene que conocer estos patrones, saber cuándo aplicarl
 | **ReAct (Reason + Act)** | Razona, actúa, observa resultado, repite. Loop de agente. |
 | **Multi-Agent Workflow** | Agentes especializados coordinados por un orquestador. |
 | **Semantic Cache** | Cachear respuestas similares semánticamente. Reduce costos. |
-| **Model Router** | Modelo correcto según complejidad: Haiku para simple, GPT-4o para complejo. |
+| **Model Router** | Modelo correcto según complejidad: modelo chico para simple, flagship para complejo. |
 | **Guardrails** | Content filtering, validación de output, defensa contra prompt injection. |
 | **Embedding Pipeline** | Chunk → Embed → Upsert → Index. Flujo de ingesta RAG. |
 | **Context Window Management** | Chunking, summarization, sliding window para conversaciones largas. |
@@ -357,13 +366,20 @@ Un tech lead/arquitecto tiene que conocer estos patrones, saber cuándo aplicarl
 
 ---
 
-## Versiones — Última Actualización
+## Cambios clave — Agosto 2026
 
-`Abril 2026`
+**Licencias (se sacaron del stack):**
+- **MediatR** → **Wolverine** (MIT). Comercial desde v13.
+- **AutoMapper** → **Mapster** (MIT). Comercial desde v15.
+- **MassTransit** → **Wolverine** (MIT). v9 comercial; v8 con parches solo hasta fin 2026.
+- **FluentAssertions**: pin a **7.x** (Apache). La v8 es comercial (Xceed).
+
+**A vigilar (licencia no-OSS, alternativa libre a mano):** Terraform (BSL → OpenTofu), MongoDB (SSPL → FerretDB), Redis (AGPL desde 8.0 → Valkey si molesta).
+
+**Última actualización:** `Agosto 2026`
 
 > Para verificar versiones antes de empezar un bloque:
 > - .NET: https://dotnet.microsoft.com/download
-> - Microsoft AgentFramework: https://github.com/microsoft/agent-framework
-> - MassTransit: https://masstransit.io/
-> - Marten: https://martendb.io/
+> - Microsoft Agent Framework: https://github.com/microsoft/agent-framework
+> - Wolverine / Marten (CritterStack): https://wolverinefx.net/ · https://martendb.io/
 > - React/Next.js: https://nextjs.org/blog

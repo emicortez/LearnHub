@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Default AI Workflow
+
+Use the Gentle-Orchestrator workflow by default for this project: coordinate first, delegate substantial implementation/review work to focused sub-agents, keep the main conversation thread thin, and synthesize results back to the user.
+
 ## Commands
 
 ```bash
@@ -30,7 +34,7 @@ dotnet test --filter "Category=Unit"               # unit tests only
 **Per-service layout** (Clean Architecture):
 ```
 {Service}.Domain/          # Zero external dependencies — only .NET BCL
-{Service}.Application/     # MediatR handlers, FluentValidation validators
+{Service}.Application/     # Wolverine handlers, FluentValidation validators
 {Service}.Infrastructure/  # EF Core, repositories, external service impls
 {Service}.API/             # Minimal API endpoints, DI wiring, Program.cs
 ```
@@ -53,7 +57,7 @@ These are invariants enforced across all services — do not break them:
 
 - **`IPasswordHasher` lives in Domain; BCrypt lives in Infrastructure.** The Domain defines the contract. The entity receives an already-hashed password — it never hashes inline.
 
-- **Domain Events are raised inside Aggregates, dispatched by Infrastructure.** After saving, Infrastructure reads `aggregate.DomainEvents`, dispatches them via MediatR, then calls `ClearDomainEvents()`.
+- **Domain Events are raised inside Aggregates, dispatched by Infrastructure.** After saving, Infrastructure reads `aggregate.DomainEvents`, dispatches them via Wolverine, then calls `ClearDomainEvents()`.
 
 - **Value Objects are immutable and equal by value.** `Email`, `UserId`, etc. inherit `ValueObject` and implement `GetEqualityComponents()`. Setters are forbidden.
 
