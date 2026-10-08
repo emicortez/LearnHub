@@ -1,0 +1,11 @@
+<Project>
+  <!-- Central Package Management: every NuGet version lives here, never in a .csproj. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Package versions are added here as projects need them. -->
+  </ItemGroup>
+</Project>
