@@ -9,62 +9,71 @@ Use the Gentle-Orchestrator workflow by default for this project: coordinate fir
 ## Commands
 
 ```bash
-# Run the full stack (all services + infrastructure via Aspire dashboard)
+# Run the whole system (Aspire dashboard)
 dotnet run --project src/AppHost/LearnHub.AppHost
 
-# Build a specific service
-dotnet build src/Services/Identity/Identity.Domain
-dotnet build src/Services/Identity/Identity.API
+# Same checks as CI (.github/workflows/ci.yml)
+dotnet restore LearnHub.slnx
+dotnet format LearnHub.slnx --verify-no-changes --no-restore
+dotnet build LearnHub.slnx --configuration Release --no-restore
+dotnet test --solution LearnHub.slnx --configuration Release --no-build
 
-# Build everything
-dotnet build LearnHub.sln
+# Fix formatting
+dotnet format LearnHub.slnx
 
-# Run tests (once added in Week 7)
-dotnet test                                        # all tests
-dotnet test --filter "FullyQualifiedName~Identity" # single service
-dotnet test --filter "Category=Unit"               # unit tests only
+# Run a subset of tests (Microsoft.Testing.Platform / xUnit v3 filters)
+dotnet test --solution LearnHub.slnx --filter-class "*HealthEndpointsTests"
 ```
+
+Tests run on **Microsoft.Testing.Platform** (`global.json` → `"test": { "runner": "Microsoft.Testing.Platform" }`); VSTest is not used. Test projects have `OutputType Exe` and do not reference `Microsoft.NET.Test.Sdk`.
 
 **NuGet**: a local `NuGet.config` at the root restricts sources to `nuget.org` only. The global user config includes a Telerik feed that requires credentials and breaks restores — the local config overrides it. Never remove `NuGet.config`.
 
+## Build conventions
+
+- `global.json` pins the SDK (10.0.4xx, `latestFeature`).
+- `Directory.Build.props`: `net10.0`, nullable, `AnalysisLevel latest-recommended`, `EnforceCodeStyleInBuild`, `TreatWarningsAsErrors`. A warning breaks the build — fix it, do not suppress it without a comment explaining why.
+- `Directory.Packages.props`: Central Package Management with transitive pinning. Versions go only here; `PackageReference` never has `Version` (NU1008).
+- `.editorconfig` is enforced at build: LF line endings, file-scoped namespaces. `CA1707` is disabled only under `tests/**` (underscored test names).
+
 ## Architecture
 
-**Microservices** — each service under `src/Services/{Name}/` is independent with its own DB. Services communicate via HTTP/gRPC (sync) or RabbitMQ/MassTransit (async events).
+**Current layout**
 
-**Per-service layout** (Clean Architecture):
 ```
-{Service}.Domain/          # Zero external dependencies — only .NET BCL
-{Service}.Application/     # Wolverine handlers, FluentValidation validators
-{Service}.Infrastructure/  # EF Core, repositories, external service impls
-{Service}.API/             # Minimal API endpoints, DI wiring, Program.cs
+src/AppHost/LearnHub.AppHost                 Aspire AppHost (Aspire.AppHost.Sdk)
+src/BuildingBlocks/LearnHub.ServiceDefaults  AddServiceDefaults() / MapDefaultEndpoints(): OpenTelemetry, health checks (/health, /alive), service discovery, HTTP resilience
+src/Services/Catalog/LearnHub.Catalog.Api    Catalog service (only health endpoints so far)
+tests/Services/Catalog/LearnHub.Catalog.Api.Tests  WebApplicationFactory integration tests
 ```
 
-The dependency rule is strict: `Domain ← Application ← Infrastructure ← API`. Nothing in Domain references NuGet packages.
+Every API project references ServiceDefaults and calls `builder.AddServiceDefaults()` and `app.MapDefaultEndpoints()`. The AppHost registers every service and infrastructure resource; run the AppHost, not individual services.
 
-**AppHost** (`src/AppHost/LearnHub.AppHost`) is the .NET Aspire orchestrator. It registers all services and infrastructure (PostgreSQL, Redis, RabbitMQ). Run this project to start the entire stack locally — not individual services.
+**Target per-service layout** (Clean Architecture, added as each service grows):
 
-**ServiceDefaults** (`src/ServiceDefaults/LearnHub.ServiceDefaults`) contains shared Aspire configuration: OpenTelemetry, health checks, service discovery. Every `*.API` project references it.
+```
+LearnHub.{Service}.Domain/          # Zero external dependencies — only .NET BCL
+LearnHub.{Service}.Application/     # Wolverine handlers, validators
+LearnHub.{Service}.Infrastructure/  # EF Core, repositories, external service implementations
+LearnHub.{Service}.Api/             # Minimal API endpoints, DI wiring, Program.cs
+```
+
+Dependency rule: `Domain ← Application ← Infrastructure ← Api`. Services communicate through HTTP (sync) or Wolverine messaging (async). MediatR, MassTransit and AutoMapper are not used (commercial licenses).
 
 ## Domain Rules
 
-These are invariants enforced across all services — do not break them:
+These invariants apply once domain projects exist — do not break them:
 
-- **Domain has zero external dependencies.** If a new class in `*.Domain` needs a NuGet package, that's a design mistake. Move the dependency to Application or Infrastructure.
+- **Domain has zero external dependencies.** If a `*.Domain` class needs a NuGet package, that is a design mistake.
+- **Business logic lives in the domain.** Invariants belong on entities and value objects, not in Application or Infrastructure.
+- **Aggregates are created through factory methods** (`Course.Create(...)`). The private parameterless constructor exists only for EF Core.
+- **Domain events are raised inside aggregates and dispatched by Infrastructure** after saving, then cleared.
+- **Value objects are immutable and equal by value.**
+- **Error codes follow `{service}.{entity}.{problem}`** (e.g. `catalog.course.title_required`).
 
-- **Never put business logic in Application or Infrastructure.** Logic that protects invariants (e.g., email format, password length) belongs on the domain entity or value object.
+## Workflow
 
-- **Aggregates only via factory methods.** Never `new User(...)` directly — always `User.Create(...)`. The private parameterless constructor exists only for EF Core.
-
-- **`IPasswordHasher` lives in Domain; BCrypt lives in Infrastructure.** The Domain defines the contract. The entity receives an already-hashed password — it never hashes inline.
-
-- **Domain Events are raised inside Aggregates, dispatched by Infrastructure.** After saving, Infrastructure reads `aggregate.DomainEvents`, dispatches them via Wolverine, then calls `ClearDomainEvents()`.
-
-- **Value Objects are immutable and equal by value.** `Email`, `UserId`, etc. inherit `ValueObject` and implement `GetEqualityComponents()`. Setters are forbidden.
-
-- **Error codes follow `{service}.{entity}.{problem}` format** (e.g., `user.email.invalid_format`). All codes for an entity live in `{Service}.Domain/Errors/{Entity}Errors.cs`.
-
-## Current State
-
-Identity Service is in progress (Week 1 of 18). Only `Identity.Domain` is built — Application, Infrastructure, and API layers contain scaffolding only. `Identity.API/Program.cs` still has the default Aspire template code; it will be replaced when the API layer is implemented.
-
-Test projects do not exist yet (planned for Week 7). Strict TDD mode will activate once xUnit + Testcontainers are added.
+- Trunk-based: short branches from `main`, Conventional Commits, squash merge after green CI. See `CONTRIBUTING.md`.
+- Test-first for behavior changes.
+- Generated artifacts (code, comments, docs, commits, PRs) are in English.
+- `tutoriales/`, `odd/` and other personal material are gitignored and must never be committed.
