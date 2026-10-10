@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The domain has zero external dependencies: only the .NET base class library. -->
+
+</Project>
