@@ -3,8 +3,10 @@
     <Project Path="src/AppHost/LearnHub.AppHost/LearnHub.AppHost.csproj" />
     <Project Path="src/BuildingBlocks/LearnHub.ServiceDefaults/LearnHub.ServiceDefaults.csproj" />
     <Project Path="src/Services/Catalog/LearnHub.Catalog.Api/LearnHub.Catalog.Api.csproj" />
+    <Project Path="src/Services/Catalog/LearnHub.Catalog.Domain/LearnHub.Catalog.Domain.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Services/Catalog/LearnHub.Catalog.Api.Tests/LearnHub.Catalog.Api.Tests.csproj" />
+    <Project Path="tests/Services/Catalog/LearnHub.Catalog.Domain.Tests/LearnHub.Catalog.Domain.Tests.csproj" />
   </Folder>
 </Solution>
