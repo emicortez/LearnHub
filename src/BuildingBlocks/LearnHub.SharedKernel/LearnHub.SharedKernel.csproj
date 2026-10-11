@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain building blocks shared by every service. Zero external dependencies. -->
+
+</Project>
