@@ -86,3 +86,6 @@ odd/
 # Visual Studio user-specific files
 .vs/
 *.user
+
+# BenchmarkDotNet results
+BenchmarkDotNet.Artifacts/

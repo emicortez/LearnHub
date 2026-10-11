@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/LearnHub.Benchmarks/LearnHub.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/AppHost/LearnHub.AppHost/LearnHub.AppHost.csproj" />
     <Project Path="src/BuildingBlocks/LearnHub.ServiceDefaults/LearnHub.ServiceDefaults.csproj" />
