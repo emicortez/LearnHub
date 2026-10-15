@@ -11,6 +11,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BuildingBlocks/LearnHub.SharedKernel.Tests/LearnHub.SharedKernel.Tests.csproj" />
+    <Project Path="tests/LearnHub.Architecture.Tests/LearnHub.Architecture.Tests.csproj" />
     <Project Path="tests/Services/Catalog/LearnHub.Catalog.Api.Tests/LearnHub.Catalog.Api.Tests.csproj" />
     <Project Path="tests/Services/Catalog/LearnHub.Catalog.Domain.Tests/LearnHub.Catalog.Domain.Tests.csproj" />
   </Folder>
