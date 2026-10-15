@@ -64,7 +64,7 @@ Dependency rule: `Domain ← Application ← Infrastructure ← Api`. Services c
 
 These invariants apply once domain projects exist — do not break them:
 
-- **Domain has zero external dependencies.** If a `*.Domain` class needs a NuGet package, that is a design mistake.
+- **Domain has zero external dependencies.** If a `*.Domain` class needs a NuGet package, that is a design mistake. Enforced by `tests/LearnHub.Architecture.Tests`: register every new domain assembly there.
 - **Business logic lives in the domain.** Invariants belong on entities and value objects, not in Application or Infrastructure.
 - **Aggregates are created through factory methods** (`Course.Create(...)`). The private parameterless constructor exists only for EF Core.
 - **Domain events are raised inside aggregates and dispatched by Infrastructure** after saving, then cleared.
