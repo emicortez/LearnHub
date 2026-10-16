@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The domain has zero external dependencies: only the .NET base class library. -->
+  <!-- The domain has zero external dependencies: only the .NET base class library and the shared kernel. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\LearnHub.SharedKernel\LearnHub.SharedKernel.csproj" />
+  </ItemGroup>
 
 </Project>
