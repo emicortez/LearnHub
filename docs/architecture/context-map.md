@@ -12,7 +12,7 @@ LearnHub is split by business capability, not by entity or technical layer. Each
 | Progress | Supporting | Kept simple |
 | Identity | Generic | Do not build: use ASP.NET Core Identity or Microsoft Entra External ID |
 | Payments | Generic | External provider (Stripe or a simulated gateway) |
-| Video hosting, email | Generic | Azure Blob Storage and an email provider |
+| Video hosting, email | Generic | YouTube embeds (no self-hosted video) and an email provider |
 
 Generic subdomains get the thinnest possible integration. Effort goes to the core.
 
