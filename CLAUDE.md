@@ -58,7 +58,7 @@ LearnHub.{Service}.Infrastructure/  # EF Core, repositories, external service im
 LearnHub.{Service}.Api/             # Minimal API endpoints, DI wiring, Program.cs
 ```
 
-Dependency rule: `Domain ← Application ← Infrastructure ← Api`. Services communicate through HTTP (sync) or Wolverine messaging (async). MediatR, MassTransit and AutoMapper are not used (commercial licenses).
+Dependency rule: `Domain ← Application ← Infrastructure ← Api`. Services communicate through HTTP (sync) or Wolverine messaging (async), never through project references to another service (enforced by `ServiceIsolationTests`). MediatR, MassTransit and AutoMapper are not used (commercial licenses).
 
 ## Domain Rules
 
