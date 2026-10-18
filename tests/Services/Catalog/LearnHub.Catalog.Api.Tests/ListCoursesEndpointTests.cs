@@ -2,14 +2,12 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-using Microsoft.AspNetCore.Mvc.Testing;
-
 namespace LearnHub.Catalog.Api.Tests;
 
 // The class fixture gives these tests their own in-memory store, but assertions still use
 // the ids each test created, so they stay correct whatever else is in the list.
-public sealed class ListCoursesEndpointTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
+    : IClassFixture<CatalogApiFactory>
 {
     [Fact]
     public async Task Paging_with_the_cursor_returns_every_course_exactly_once()

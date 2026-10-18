@@ -1,11 +1,9 @@
 using System.Net;
 
-using Microsoft.AspNetCore.Mvc.Testing;
-
 namespace LearnHub.Catalog.Api.Tests;
 
-public sealed class HealthEndpointsTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class HealthEndpointsTests(CatalogApiFactory factory)
+    : IClassFixture<CatalogApiFactory>
 {
     [Theory]
     [InlineData("/health")]

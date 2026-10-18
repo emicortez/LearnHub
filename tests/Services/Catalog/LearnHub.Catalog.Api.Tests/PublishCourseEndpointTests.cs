@@ -2,12 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-using Microsoft.AspNetCore.Mvc.Testing;
-
 namespace LearnHub.Catalog.Api.Tests;
 
-public sealed class PublishCourseEndpointTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class PublishCourseEndpointTests(CatalogApiFactory factory)
+    : IClassFixture<CatalogApiFactory>
 {
     [Fact]
     public async Task Publish_course_that_does_not_exist_returns_404_with_the_error_code()

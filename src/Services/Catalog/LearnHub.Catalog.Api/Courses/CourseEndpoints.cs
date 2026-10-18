@@ -1,5 +1,6 @@
 using LearnHub.Catalog.Api.Errors;
 using LearnHub.Catalog.Api.Idempotency;
+using LearnHub.Catalog.Api.RateLimiting;
 using LearnHub.Catalog.Application.Courses;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -18,10 +19,12 @@ public static class CourseEndpoints
         // for the OpenAPI document; typed results such as Ok<T> and NotFound document themselves.
         group.MapPost("/", CreateCourseAsync)
             .WithSummary("Create a draft course")
+            .RequireRateLimiting(RateLimitingServiceCollectionExtensions.WritesPolicy)
             .AddEndpointFilter<IdempotencyFilter<CreateCourseRequest>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/", ListCoursesAsync)
             .WithSummary("List courses one page at a time")
@@ -33,8 +36,10 @@ public static class CourseEndpoints
 
         group.MapPost("/{id:guid}/publish", PublishCourseAsync)
             .WithSummary("Publish a draft course")
+            .RequireRateLimiting(RateLimitingServiceCollectionExtensions.WritesPolicy)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         return endpoints;
     }
