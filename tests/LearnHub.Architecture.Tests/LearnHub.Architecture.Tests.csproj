@@ -16,6 +16,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BuildingBlocks\LearnHub.SharedKernel\LearnHub.SharedKernel.csproj" />
     <ProjectReference Include="..\..\src\Services\Catalog\LearnHub.Catalog.Domain\LearnHub.Catalog.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Catalog\LearnHub.Catalog.Application\LearnHub.Catalog.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Catalog\LearnHub.Catalog.Infrastructure\LearnHub.Catalog.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

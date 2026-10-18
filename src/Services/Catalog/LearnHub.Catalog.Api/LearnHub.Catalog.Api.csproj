@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\LearnHub.ServiceDefaults\LearnHub.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\LearnHub.Catalog.Application\LearnHub.Catalog.Application.csproj" />
+    <ProjectReference Include="..\LearnHub.Catalog.Infrastructure\LearnHub.Catalog.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

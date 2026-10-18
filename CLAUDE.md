@@ -43,8 +43,13 @@ Tests run on **Microsoft.Testing.Platform** (`global.json` → `"test": { "runne
 ```
 src/AppHost/LearnHub.AppHost                 Aspire AppHost (Aspire.AppHost.Sdk)
 src/BuildingBlocks/LearnHub.ServiceDefaults  AddServiceDefaults() / MapDefaultEndpoints(): OpenTelemetry, health checks (/health, /alive), service discovery, HTTP resilience
-src/Services/Catalog/LearnHub.Catalog.Api    Catalog service (only health endpoints so far)
-tests/Services/Catalog/LearnHub.Catalog.Api.Tests  WebApplicationFactory integration tests
+src/BuildingBlocks/LearnHub.SharedKernel     Entity, AggregateRoot, ValueObject, Result, Error
+src/Services/Catalog/LearnHub.Catalog.Domain          Course aggregate, value objects, domain events
+src/Services/Catalog/LearnHub.Catalog.Application     Use-case handlers (plain classes until Wolverine), ICourseRepository
+src/Services/Catalog/LearnHub.Catalog.Infrastructure  In-memory repository (replaced by EF Core in module 6)
+src/Services/Catalog/LearnHub.Catalog.Api             Minimal API endpoints by feature (Courses/CourseEndpoints.cs)
+tests/Services/Catalog/LearnHub.Catalog.Api.Tests     WebApplicationFactory integration tests
+tests/LearnHub.Architecture.Tests                     Dependency, encapsulation, layer and service-isolation rules
 ```
 
 Every API project references ServiceDefaults and calls `builder.AddServiceDefaults()` and `app.MapDefaultEndpoints()`. The AppHost registers every service and infrastructure resource; run the AppHost, not individual services.
