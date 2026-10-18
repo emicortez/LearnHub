@@ -17,10 +17,13 @@ Online courses are mostly passive: long videos, little help when you get stuck, 
 
 ## Who it is for
 
-| User | Wants |
-|---|---|
-| **Student** | Learn a topic at their own pace, get unstuck quickly, and see their progress |
-| **Instructor** | Publish and price courses built from their own videos or curated ones, without running video infrastructure |
+| Role | Who | Wants |
+|---|---|---|
+| **Platform admin** | The LearnHub operator (the owner of the platform, like Udemy itself) | Manage users and instructors, moderate courses, and see how the platform is doing |
+| **Instructor** | Creates and sells courses | Publish and price courses built from their own videos or curated ones, without running video infrastructure |
+| **Student** | Any registered user who learns | Learn a topic at their own pace, get unstuck quickly, and see their progress |
+
+Roles are claims issued by Identity ([context map](../architecture/context-map.md)); each service authorizes with them.
 
 ## Key capabilities
 
@@ -44,7 +47,8 @@ The AI capabilities are what make LearnHub different from a classic course marke
 ## Open questions
 
 - **Business model:** paid courses through a payment provider, free courses only, or both?
-- **Who can teach:** can any user become an instructor, or only invited ones?
+- **Who can teach:** can any student become an instructor, or does a platform admin approve instructors?
+- **Multiple roles:** can one user be an instructor and a student at the same time? (Likely yes, as on Udemy.)
 - **Source for AI summaries:** a video's transcript is not freely downloadable through the official YouTube API unless you own the video. Summaries may need instructor-provided transcripts or notes.
 - **Whiteboard scope:** personal notes per lesson, or shared between students?
 
