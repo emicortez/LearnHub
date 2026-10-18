@@ -10,5 +10,11 @@ public interface ICourseRepository
 {
     Task<Course?> GetAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Returns up to <paramref name="take"/> courses with an id greater than <paramref name="afterId"/>
+    /// (all of them when it is null), ordered by id. The same keyset query maps to SQL in module 6.
+    /// </summary>
+    Task<IReadOnlyList<Course>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken);
+
     void Add(Course course);
 }

@@ -13,6 +13,7 @@ public static class DependencyInjection
     {
         services.AddScoped<CreateCourseHandler>();
         services.AddScoped<GetCourseHandler>();
+        services.AddScoped<ListCoursesHandler>();
         services.AddScoped<PublishCourseHandler>();
 
         return services;

@@ -19,6 +19,10 @@ public static class CourseEndpoints
             .WithSummary("Create a draft course")
             .ProducesValidationProblem();
 
+        group.MapGet("/", ListCoursesAsync)
+            .WithSummary("List courses one page at a time")
+            .ProducesValidationProblem();
+
         group.MapGet("/{id:guid}", GetCourseAsync)
             .WithName(GetCourseRoute)
             .WithSummary("Get a course by id");
@@ -45,6 +49,32 @@ public static class CourseEndpoints
         return result.IsSuccess
             ? TypedResults.CreatedAtRoute(new CreatedCourseResponse(result.Value), GetCourseRoute, new { id = result.Value })
             : result.Error.ToProblem();
+    }
+
+    private static async Task<Results<Ok<CoursePageResponse>, ProblemHttpResult>> ListCoursesAsync(
+        [AsParameters] ListCoursesRequest request,
+        ListCoursesHandler handler,
+        CancellationToken cancellationToken)
+    {
+        Guid? after = null;
+        if (request.Cursor is not null)
+        {
+            if (!CourseCursor.TryDecode(request.Cursor, out after))
+            {
+                return CourseCursor.Invalid.ToProblem();
+            }
+        }
+
+        var page = await handler.HandleAsync(new ListCourses(request.Limit, after), cancellationToken);
+
+        var items = page.Items
+            .Select(course => new CourseSummaryResponse(
+                course.Id, course.Title, course.Slug, course.Price, course.Currency, course.Status))
+            .ToList();
+
+        return TypedResults.Ok(new CoursePageResponse(
+            items,
+            page.NextAfter is { } nextAfter ? CourseCursor.Encode(nextAfter) : null));
     }
 
     private static async Task<Results<Ok<CourseResponse>, NotFound>> GetCourseAsync(

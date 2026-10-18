@@ -14,6 +14,8 @@ public sealed class OpenApiContractTests(WebApplicationFactory<Program> factory)
     [Theory]
     [InlineData("/courses", "post", "201")]
     [InlineData("/courses", "post", "400")]
+    [InlineData("/courses", "get", "200")]
+    [InlineData("/courses", "get", "400")]
     [InlineData("/courses/{id}", "get", "200")]
     [InlineData("/courses/{id}", "get", "404")]
     [InlineData("/courses/{id}/publish", "post", "204")]
@@ -30,6 +32,7 @@ public sealed class OpenApiContractTests(WebApplicationFactory<Program> factory)
 
     [Theory]
     [InlineData("/courses", "post")]
+    [InlineData("/courses", "get")]
     [InlineData("/courses/{id}", "get")]
     [InlineData("/courses/{id}/publish", "post")]
     public async Task OpenApi_document_has_a_summary_for_each_endpoint(string path, string method)
