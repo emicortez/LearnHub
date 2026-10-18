@@ -13,9 +13,20 @@ public static class CourseEndpoints
     {
         var group = endpoints.MapGroup("/courses").WithTags("Courses");
 
-        group.MapPost("/", CreateCourseAsync);
-        group.MapGet("/{id:guid}", GetCourseAsync).WithName(GetCourseRoute);
-        group.MapPost("/{id:guid}/publish", PublishCourseAsync);
+        // ProblemHttpResult picks its status at runtime, so error responses are declared explicitly
+        // for the OpenAPI document; typed results such as Ok<T> and NotFound document themselves.
+        group.MapPost("/", CreateCourseAsync)
+            .WithSummary("Create a draft course")
+            .ProducesValidationProblem();
+
+        group.MapGet("/{id:guid}", GetCourseAsync)
+            .WithName(GetCourseRoute)
+            .WithSummary("Get a course by id");
+
+        group.MapPost("/{id:guid}/publish", PublishCourseAsync)
+            .WithSummary("Publish a draft course")
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         return endpoints;
     }
