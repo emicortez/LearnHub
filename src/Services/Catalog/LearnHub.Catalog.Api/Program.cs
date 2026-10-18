@@ -6,6 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+builder.Services.AddValidation();
+
 builder.Services
     .AddCatalogApplication()
     .AddCatalogInfrastructure();
