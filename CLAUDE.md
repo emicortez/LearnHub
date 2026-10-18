@@ -74,7 +74,7 @@ These invariants apply once domain projects exist — do not break them:
 - **Aggregates are created through factory methods** (`Course.Create(...)`). The private parameterless constructor exists only for EF Core. Entities and value objects have no public constructors and no public setters — enforced by `DomainEncapsulationTests`.
 - **Domain events are raised inside aggregates and dispatched by Infrastructure** after saving, then cleared.
 - **Value objects are immutable and equal by value.**
-- **Error codes follow `{service}.{entity}.{problem}`** (e.g. `catalog.course.title_required`).
+- **Error codes follow `{service}.{entity}.{problem}`** (e.g. `catalog.course.title_required`) and every error has a type, created through `Error.Validation`, `Error.NotFound` or `Error.Conflict`. The Api maps the type to 400, 404 or 409 in `Errors/ErrorResults.cs` (Problem Details with a `code` extension); unexpected exceptions become a generic 500 through `UnhandledExceptionHandler`.
 
 ## Workflow
 
