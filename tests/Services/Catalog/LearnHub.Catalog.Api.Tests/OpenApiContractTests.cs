@@ -14,6 +14,8 @@ public sealed class OpenApiContractTests(WebApplicationFactory<Program> factory)
     [Theory]
     [InlineData("/courses", "post", "201")]
     [InlineData("/courses", "post", "400")]
+    [InlineData("/courses", "post", "409")]
+    [InlineData("/courses", "post", "422")]
     [InlineData("/courses", "get", "200")]
     [InlineData("/courses", "get", "400")]
     [InlineData("/courses/{id}", "get", "200")]
