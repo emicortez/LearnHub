@@ -2,7 +2,7 @@ namespace LearnHub.SharedKernel.Tests;
 
 public sealed class ResultTests
 {
-    private static readonly Error CourseFull = new("catalog.course.full", "The course is full.");
+    private static readonly Error CourseFull = Error.Conflict("catalog.course.full", "The course is full.");
 
     [Fact]
     public void Success_exposes_the_value()

@@ -1,3 +1,4 @@
+using LearnHub.Catalog.Api.Errors;
 using LearnHub.Catalog.Application.Courses;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -14,6 +15,7 @@ public static class CourseEndpoints
 
         group.MapPost("/", CreateCourseAsync);
         group.MapGet("/{id:guid}", GetCourseAsync).WithName(GetCourseRoute);
+        group.MapPost("/{id:guid}/publish", PublishCourseAsync);
 
         return endpoints;
     }
@@ -29,10 +31,9 @@ public static class CourseEndpoints
 
         var result = await handler.HandleAsync(command, cancellationToken);
 
-        // Every business error maps to 400 for now; a richer error-to-status mapping comes later.
         return result.IsSuccess
             ? TypedResults.CreatedAtRoute(new CreatedCourseResponse(result.Value), GetCourseRoute, new { id = result.Value })
-            : TypedResults.Problem(title: result.Error.Code, detail: result.Error.Description, statusCode: StatusCodes.Status400BadRequest);
+            : result.Error.ToProblem();
     }
 
     private static async Task<Results<Ok<CourseResponse>, NotFound>> GetCourseAsync(
@@ -52,5 +53,17 @@ public static class CourseEndpoints
                 course.Price,
                 course.Currency,
                 course.Status));
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> PublishCourseAsync(
+        Guid id,
+        PublishCourseHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.HandleAsync(new PublishCourse(id), cancellationToken);
+
+        return result.IsSuccess
+            ? TypedResults.NoContent()
+            : result.Error.ToProblem();
     }
 }

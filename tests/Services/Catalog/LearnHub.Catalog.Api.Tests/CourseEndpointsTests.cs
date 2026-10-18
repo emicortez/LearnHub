@@ -53,7 +53,8 @@ public sealed class CourseEndpointsTests(WebApplicationFactory<Program> factory)
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var problem = await ReadJsonAsync(response);
-        Assert.Equal(expectedCode, problem.GetProperty("title").GetString());
+        Assert.Equal(expectedCode, problem.GetProperty("code").GetString());
+        Assert.Equal("Bad Request", problem.GetProperty("title").GetString());
         Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("detail").GetString()));
     }
 
@@ -67,7 +68,8 @@ public sealed class CourseEndpointsTests(WebApplicationFactory<Program> factory)
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await ReadJsonAsync(response);
-        Assert.Equal("catalog.course.instructor_required", problem.GetProperty("title").GetString());
+        Assert.Equal("catalog.course.instructor_required", problem.GetProperty("code").GetString());
+        Assert.NotEqual("catalog.course.instructor_required", problem.GetProperty("title").GetString());
     }
 
     [Theory]
