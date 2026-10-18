@@ -58,16 +58,45 @@ public sealed class CourseEndpointsTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
-    public async Task Create_course_without_an_instructor_returns_400_instead_of_failing()
+    public async Task Create_course_with_an_empty_instructor_returns_400_instead_of_failing()
     {
         var client = factory.CreateClient();
-        var request = new { title = "Domain-Driven Design", price = 10m, currency = "USD" };
+        var request = new { instructorId = Guid.Empty, title = "Domain-Driven Design", price = 10m, currency = "USD" };
 
         var response = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await ReadJsonAsync(response);
         Assert.Equal("catalog.course.instructor_required", problem.GetProperty("title").GetString());
+    }
+
+    [Theory]
+    [InlineData("""{ "title": "Docker", "price": 10, "currency": "USD" }""", "InstructorId")]
+    [InlineData("""{ "instructorId": "0198a0b4-0000-7000-8000-000000000001", "title": "Docker", "currency": "USD" }""", "Price")]
+    public async Task Create_course_with_a_missing_required_field_returns_400_listing_the_field(
+        string json, string expectedField)
+    {
+        var client = factory.CreateClient();
+        using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync("/courses", content, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await ReadJsonAsync(response);
+        Assert.True(
+            problem.GetProperty("errors").TryGetProperty(expectedField, out _),
+            $"Expected a validation error for {expectedField}, got: {problem}");
+    }
+
+    [Fact]
+    public async Task Create_course_with_an_explicit_zero_price_creates_a_free_course()
+    {
+        var client = factory.CreateClient();
+        var request = new { instructorId = Guid.NewGuid(), title = "Git for beginners", price = 0m, currency = "USD" };
+
+        var response = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
     [Theory]

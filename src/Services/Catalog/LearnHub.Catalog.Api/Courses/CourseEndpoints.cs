@@ -23,8 +23,9 @@ public static class CourseEndpoints
         CreateCourseHandler handler,
         CancellationToken cancellationToken)
     {
+        // Required fields are guaranteed by validation before the handler runs.
         // instructorId comes from the body until authentication lands; then it is read from the JWT 'sub' claim.
-        var command = new CreateCourse(request.InstructorId, request.Title, request.Price, request.Currency);
+        var command = new CreateCourse(request.InstructorId!.Value, request.Title, request.Price!.Value, request.Currency);
 
         var result = await handler.HandleAsync(command, cancellationToken);
 
