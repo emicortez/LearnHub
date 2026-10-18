@@ -1,5 +1,6 @@
 using LearnHub.Catalog.Api.Courses;
 using LearnHub.Catalog.Api.Errors;
+using LearnHub.Catalog.Api.Idempotency;
 using LearnHub.Catalog.Application;
 using LearnHub.Catalog.Infrastructure;
 
@@ -13,6 +14,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddValidation();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<UnhandledExceptionHandler>();
+
+builder.Services.AddIdempotency();
 
 builder.Services
     .AddCatalogApplication()

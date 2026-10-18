@@ -1,4 +1,5 @@
 using LearnHub.Catalog.Api.Errors;
+using LearnHub.Catalog.Api.Idempotency;
 using LearnHub.Catalog.Application.Courses;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -17,7 +18,10 @@ public static class CourseEndpoints
         // for the OpenAPI document; typed results such as Ok<T> and NotFound document themselves.
         group.MapPost("/", CreateCourseAsync)
             .WithSummary("Create a draft course")
-            .ProducesValidationProblem();
+            .AddEndpointFilter<IdempotencyFilter<CreateCourseRequest>>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         group.MapGet("/", ListCoursesAsync)
             .WithSummary("List courses one page at a time")
