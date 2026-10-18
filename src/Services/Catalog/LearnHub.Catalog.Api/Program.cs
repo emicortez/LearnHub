@@ -1,3 +1,4 @@
+using LearnHub.Catalog.Api.Caching;
 using LearnHub.Catalog.Api.Courses;
 using LearnHub.Catalog.Api.Errors;
 using LearnHub.Catalog.Api.Idempotency;
@@ -18,6 +19,7 @@ builder.Services.AddExceptionHandler<UnhandledExceptionHandler>();
 
 builder.Services.AddIdempotency();
 builder.Services.AddCatalogRateLimiting(builder.Configuration);
+builder.Services.AddCatalogOutputCaching();
 
 builder.Services
     .AddCatalogApplication()
@@ -32,6 +34,9 @@ app.UseStatusCodePages();
 // Partitioned by client IP for now. With per-user partitions (4b) this moves after UseAuthentication, and behind the
 // Container Apps ingress it needs forwarded headers first; otherwise every client shares the proxy's IP and bucket.
 app.UseRateLimiter();
+// After the rate limiter and before the endpoints. By default it skips requests with an Authorization header, so once
+// authentication lands (4b) authenticated reads bypass the cache unless a policy opts them in.
+app.UseOutputCache();
 
 // The document and its UI are for local development only; the frontend client is generated at build time.
 if (app.Environment.IsDevelopment())

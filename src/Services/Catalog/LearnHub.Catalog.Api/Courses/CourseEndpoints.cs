@@ -1,3 +1,4 @@
+using LearnHub.Catalog.Api.Caching;
 using LearnHub.Catalog.Api.Errors;
 using LearnHub.Catalog.Api.Idempotency;
 using LearnHub.Catalog.Api.RateLimiting;
@@ -21,6 +22,9 @@ public static class CourseEndpoints
             .WithSummary("Create a draft course")
             .RequireRateLimiting(RateLimitingServiceCollectionExtensions.WritesPolicy)
             .AddEndpointFilter<IdempotencyFilter<CreateCourseRequest>>()
+            // Inside the idempotency filter, so a replay does not evict: it is not a new write, and the original
+            // request already evicted. Evicting again would be harmless, only a wasted cache refill.
+            .AddEndpointFilter<EvictCoursesCacheFilter>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
@@ -28,15 +32,18 @@ public static class CourseEndpoints
 
         group.MapGet("/", ListCoursesAsync)
             .WithSummary("List courses one page at a time")
+            .CacheOutput(OutputCachingServiceCollectionExtensions.CoursesPolicy)
             .ProducesValidationProblem();
 
         group.MapGet("/{id:guid}", GetCourseAsync)
             .WithName(GetCourseRoute)
-            .WithSummary("Get a course by id");
+            .WithSummary("Get a course by id")
+            .CacheOutput(OutputCachingServiceCollectionExtensions.CoursesPolicy);
 
         group.MapPost("/{id:guid}/publish", PublishCourseAsync)
             .WithSummary("Publish a draft course")
             .RequireRateLimiting(RateLimitingServiceCollectionExtensions.WritesPolicy)
+            .AddEndpointFilter<EvictCoursesCacheFilter>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
