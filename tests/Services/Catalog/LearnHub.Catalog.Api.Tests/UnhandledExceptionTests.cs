@@ -46,6 +46,9 @@ public sealed class UnhandledExceptionTests(WebApplicationFactory<Program> facto
         public Task<Course?> GetAsync(Guid id, CancellationToken cancellationToken) =>
             throw new InvalidOperationException(SecretMessage);
 
+        public Task<IReadOnlyList<Course>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(SecretMessage);
+
         public void Add(Course course) => throw new InvalidOperationException(SecretMessage);
     }
 }

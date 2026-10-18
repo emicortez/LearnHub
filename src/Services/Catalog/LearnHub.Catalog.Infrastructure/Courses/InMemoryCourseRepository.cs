@@ -20,6 +20,22 @@ public sealed class InMemoryCourseRepository : ICourseRepository
         return Task.FromResult(_courses.GetValueOrDefault(id));
     }
 
+    public Task<IReadOnlyList<Course>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Ids are unique and Guid comparison is a total order, so the sort is stable across calls,
+        // which is all keyset pagination needs (v7 ids from the same millisecond are not creation-ordered).
+        // A snapshot of the dictionary is enumerated, so concurrent adds cannot break the query.
+        IReadOnlyList<Course> page = _courses.Values
+            .Where(course => afterId is null || course.Id.CompareTo(afterId.Value) > 0)
+            .OrderBy(course => course.Id)
+            .Take(take)
+            .ToList();
+
+        return Task.FromResult(page);
+    }
+
     public void Add(Course course)
     {
         ArgumentNullException.ThrowIfNull(course);
