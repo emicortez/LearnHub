@@ -1,6 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\LearnHub.ServiceDefaults\LearnHub.ServiceDefaults.csproj" />
     <ProjectReference Include="..\LearnHub.Catalog.Application\LearnHub.Catalog.Application.csproj" />
     <ProjectReference Include="..\LearnHub.Catalog.Infrastructure\LearnHub.Catalog.Infrastructure.csproj" />

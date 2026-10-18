@@ -11,6 +11,7 @@ Use the Gentle-Orchestrator workflow by default for this project: coordinate fir
 ```bash
 # Run the whole system (Aspire dashboard)
 dotnet run --project src/AppHost/LearnHub.AppHost
+# In Development each API serves /openapi/v1.json and an interactive UI at /scalar
 
 # Same checks as CI (.github/workflows/ci.yml)
 dotnet restore LearnHub.slnx
