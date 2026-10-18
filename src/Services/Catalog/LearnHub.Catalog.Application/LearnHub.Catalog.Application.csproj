@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Use cases of the Catalog service. Depends on the domain and on abstractions only, never on frameworks or infrastructure. -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\LearnHub.SharedKernel\LearnHub.SharedKernel.csproj" />
+    <ProjectReference Include="..\LearnHub.Catalog.Domain\LearnHub.Catalog.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -7,6 +7,9 @@ namespace LearnHub.Catalog.Domain.Courses;
 /// </summary>
 public static class CourseErrors
 {
+    public static readonly Error InstructorRequired =
+        new("catalog.course.instructor_required", "The course needs an instructor.");
+
     public static readonly Error TitleRequired =
         new("catalog.course.title_required", "The course title is required.");
 
