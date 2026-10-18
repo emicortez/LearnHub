@@ -6,14 +6,13 @@ using LearnHub.Catalog.Api.Idempotency;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LearnHub.Catalog.Api.Tests;
 
 // The fixture is shared, so every test uses its own key and a unique course title.
-public sealed class IdempotencyKeyTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
+    : IClassFixture<CatalogApiFactory>
 {
     private const string HeaderName = "Idempotency-Key";
 

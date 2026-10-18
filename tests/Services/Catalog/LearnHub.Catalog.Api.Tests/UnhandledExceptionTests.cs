@@ -6,15 +6,14 @@ using LearnHub.Catalog.Application.Courses;
 using LearnHub.Catalog.Domain.Courses;
 
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace LearnHub.Catalog.Api.Tests;
 
-public sealed class UnhandledExceptionTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class UnhandledExceptionTests(CatalogApiFactory factory)
+    : IClassFixture<CatalogApiFactory>
 {
     private const string SecretMessage = "secret connection string xyz";
 

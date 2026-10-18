@@ -1,6 +1,7 @@
 using LearnHub.Catalog.Api.Courses;
 using LearnHub.Catalog.Api.Errors;
 using LearnHub.Catalog.Api.Idempotency;
+using LearnHub.Catalog.Api.RateLimiting;
 using LearnHub.Catalog.Application;
 using LearnHub.Catalog.Infrastructure;
 
@@ -16,6 +17,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<UnhandledExceptionHandler>();
 
 builder.Services.AddIdempotency();
+builder.Services.AddCatalogRateLimiting(builder.Configuration);
 
 builder.Services
     .AddCatalogApplication()
@@ -27,6 +29,9 @@ var app = builder.Build();
 app.UseExceptionHandler();
 // Gives empty error responses (such as an unmatched route's 404) a Problem Details body.
 app.UseStatusCodePages();
+// Partitioned by client IP for now. With per-user partitions (4b) this moves after UseAuthentication, and behind the
+// Container Apps ingress it needs forwarded headers first; otherwise every client shares the proxy's IP and bucket.
+app.UseRateLimiter();
 
 // The document and its UI are for local development only; the frontend client is generated at build time.
 if (app.Environment.IsDevelopment())

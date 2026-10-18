@@ -2,20 +2,19 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-using Microsoft.AspNetCore.Mvc.Testing;
-
 namespace LearnHub.Catalog.Api.Tests;
 
 // Contract test: the OpenAPI document is what the frontend client is generated from,
 // so every endpoint must document its success and error responses.
-public sealed class OpenApiContractTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class OpenApiContractTests(CatalogApiFactory factory)
+    : IClassFixture<CatalogApiFactory>
 {
     [Theory]
     [InlineData("/courses", "post", "201")]
     [InlineData("/courses", "post", "400")]
     [InlineData("/courses", "post", "409")]
     [InlineData("/courses", "post", "422")]
+    [InlineData("/courses", "post", "429")]
     [InlineData("/courses", "get", "200")]
     [InlineData("/courses", "get", "400")]
     [InlineData("/courses/{id}", "get", "200")]
@@ -23,6 +22,7 @@ public sealed class OpenApiContractTests(WebApplicationFactory<Program> factory)
     [InlineData("/courses/{id}/publish", "post", "204")]
     [InlineData("/courses/{id}/publish", "post", "404")]
     [InlineData("/courses/{id}/publish", "post", "409")]
+    [InlineData("/courses/{id}/publish", "post", "429")]
     public async Task OpenApi_document_describes_each_endpoint_response(string path, string method, string status)
     {
         var document = await GetDocumentAsync();

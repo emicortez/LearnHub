@@ -2,12 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-using Microsoft.AspNetCore.Mvc.Testing;
-
 namespace LearnHub.Catalog.Api.Tests;
 
-public sealed class CourseEndpointsTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class CourseEndpointsTests(CatalogApiFactory factory)
+    : IClassFixture<CatalogApiFactory>
 {
     [Fact]
     public async Task Create_course_returns_201_with_a_location_that_resolves_to_the_draft_course()
