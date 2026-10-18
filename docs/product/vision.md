@@ -34,7 +34,10 @@ Roles are claims issued by Identity ([context map](../architecture/context-map.m
 | AI summaries | Short summaries of lessons and videos to review or preview them | AI Tutor (core) |
 | Enrollment | Free or paid enrollment, with the price fixed at enrollment time | Enrollment |
 | Progress | Track completed lessons and pick up where you left off | Progress |
-| Student whiteboard | A real-time board to sketch and take notes while studying | To be decided |
+| Live viewers | "N people are viewing this course now", updated in real time | Catalog |
+| Instructor announcements | Instructors notify enrolled students about content updates or special classes: a persisted inbox, pushed live to connected students | To be decided (needs Enrollment) |
+| Lesson Q&A | Students ask questions on a lesson and instructors answer, asynchronously as on Udemy (not real time) | To be decided |
+| Student whiteboard | A board to sketch and take notes while studying (postponed) | To be decided |
 
 The AI capabilities are what make LearnHub different from a classic course marketplace, and they get the most design effort ([context map](../architecture/context-map.md)).
 

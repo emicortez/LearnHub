@@ -3,6 +3,7 @@ using LearnHub.Catalog.Api.Courses;
 using LearnHub.Catalog.Api.Errors;
 using LearnHub.Catalog.Api.Idempotency;
 using LearnHub.Catalog.Api.RateLimiting;
+using LearnHub.Catalog.Api.Viewers;
 using LearnHub.Catalog.Application;
 using LearnHub.Catalog.Infrastructure;
 
@@ -20,6 +21,7 @@ builder.Services.AddExceptionHandler<UnhandledExceptionHandler>();
 builder.Services.AddIdempotency();
 builder.Services.AddCatalogRateLimiting(builder.Configuration);
 builder.Services.AddCatalogOutputCaching();
+builder.Services.AddCourseViewers();
 
 builder.Services
     .AddCatalogApplication()
@@ -47,5 +49,6 @@ if (app.Environment.IsDevelopment())
 
 app.MapDefaultEndpoints();
 app.MapCourseEndpoints();
+app.MapCourseViewers();
 
 app.Run();

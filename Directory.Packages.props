@@ -17,9 +17,10 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
   </ItemGroup>
 
-  <!-- Application-layer abstractions: keep in line with the ASP.NET Core shared framework the Api runs on -->
+  <!-- Application-layer abstractions: keep in line with the ASP.NET Core shared framework the Api runs on.
+       Raised to 10.0.13 because Microsoft.AspNetCore.SignalR.Client 10.0.13 requires it (NU1109 otherwise). -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
   </ItemGroup>
 
   <!-- Transitive security pins: remove once upstream packages ship the patched version -->
@@ -37,6 +38,7 @@
   <!-- Testing -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
   </ItemGroup>
 </Project>
