@@ -44,6 +44,20 @@ public sealed class ForwardedHeadersTests
     }
 
     [Fact]
+    public async Task Spoofed_entries_before_the_proxy_appended_address_are_ignored()
+    {
+        await using var factory = new CatalogApiFactory();
+        var client = CreateClient(factory, remoteIp: TrustedProxy, tokenLimit: 1);
+
+        // The client prepends a fake address; the proxy appends the real one. Only the right-most entry counts.
+        var first = await CreateCourseAsync(client, forwardedFor: "6.6.6.6, 203.0.113.1");
+        var second = await CreateCourseAsync(client, forwardedFor: "7.7.7.7, 203.0.113.1");
+
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
+    }
+
+    [Fact]
     public async Task Links_use_the_original_scheme_from_a_trusted_proxy()
     {
         await using var factory = new CatalogApiFactory();

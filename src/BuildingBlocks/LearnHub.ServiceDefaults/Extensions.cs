@@ -115,7 +115,9 @@ public static class Extensions
     // Behind a TLS-terminating proxy the app sees the proxy's IP and plain HTTP. UseForwardedHeaders restores the
     // client's IP and scheme from X-Forwarded-For and X-Forwarded-Proto, but only for requests from a trusted proxy:
     // anyone can send those headers. Loopback is trusted by default; list the proxy's CIDR ranges (for Container Apps,
-    // the environment's infrastructure subnet) under ForwardedHeaders:KnownNetworks.
+    // the environment's infrastructure subnet) under ForwardedHeaders:KnownNetworks. The default ForwardLimit of 1
+    // reads only the right-most X-Forwarded-For entry, which is right for one proxy hop; a CDN in front of the
+    // ingress would need a higher limit and its ranges trusted too.
     public static TBuilder AddDefaultForwardedHeaders<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.Services.AddOptions<ForwardedHeadersOptions>()
