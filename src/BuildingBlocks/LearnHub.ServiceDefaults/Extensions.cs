@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -18,12 +20,15 @@ public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
+    private const string KnownNetworksSection = "ForwardedHeaders:KnownNetworks";
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.ConfigureOpenTelemetry();
 
         builder.AddDefaultHealthChecks();
+
+        builder.AddDefaultForwardedHeaders();
 
         builder.Services.AddServiceDiscovery();
 
@@ -107,21 +112,45 @@ public static class Extensions
         return builder;
     }
 
+    // Behind a TLS-terminating proxy the app sees the proxy's IP and plain HTTP. UseForwardedHeaders restores the
+    // client's IP and scheme from X-Forwarded-For and X-Forwarded-Proto, but only for requests from a trusted proxy:
+    // anyone can send those headers. Loopback is trusted by default; list the proxy's CIDR ranges (for Container Apps,
+    // the environment's infrastructure subnet) under ForwardedHeaders:KnownNetworks. The default ForwardLimit of 1
+    // reads only the right-most X-Forwarded-For entry, which is right for one proxy hop; a CDN in front of the
+    // ingress would need a higher limit and its ranges trusted too.
+    public static TBuilder AddDefaultForwardedHeaders<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        builder.Services.AddOptions<ForwardedHeadersOptions>()
+            .Configure<IConfiguration>((options, configuration) =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+                foreach (var network in configuration.GetSection(KnownNetworksSection).Get<string[]>() ?? [])
+                {
+                    options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+                }
+            });
+
+        return builder;
+    }
+
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Adding health checks endpoints to applications in non-development environments has security implications.
-        // See https://aka.ms/dotnet/aspire/healthchecks for details before enabling these endpoints in non-development environments.
-        if (app.Environment.IsDevelopment())
-        {
-            // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks(HealthEndpointPath);
+        // Mapped in every environment because the orchestrator's probes need them. The default response writer sends
+        // only the overall status ("Healthy", "Degraded" or "Unhealthy"), never check names, exceptions or timings, so
+        // the endpoints reveal nothing about the app's dependencies. Probes are exempt from rate limiting so a busy
+        // client can never get the app restarted.
 
-            // Only health checks tagged with the "live" tag must pass for app to be considered alive
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live")
-            });
-        }
+        // All health checks must pass for app to be considered ready to accept traffic after starting
+        app.MapHealthChecks(HealthEndpointPath)
+            .DisableRateLimiting();
+
+        // Only health checks tagged with the "live" tag must pass for app to be considered alive
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("live")
+        })
+            .DisableRateLimiting();
 
         return app;
     }

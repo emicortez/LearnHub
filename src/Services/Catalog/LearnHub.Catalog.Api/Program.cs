@@ -29,12 +29,14 @@ builder.Services
 
 var app = builder.Build();
 
-// First, so it catches exceptions thrown anywhere later in the pipeline.
+// Before everything else, so the rate limiter, logs and generated links see the client's IP and scheme, not the proxy's.
+app.UseForwardedHeaders();
+// Next, so it catches exceptions thrown anywhere later in the pipeline.
 app.UseExceptionHandler();
 // Gives empty error responses (such as an unmatched route's 404) a Problem Details body.
 app.UseStatusCodePages();
-// Partitioned by client IP for now. With per-user partitions (4b) this moves after UseAuthentication, and behind the
-// Container Apps ingress it needs forwarded headers first; otherwise every client shares the proxy's IP and bucket.
+// Partitioned by client IP for now (the forwarded one behind a trusted proxy). With per-user partitions (4b) this
+// moves after UseAuthentication.
 app.UseRateLimiter();
 // After the rate limiter and before the endpoints. By default it skips requests with an Authorization header, so once
 // authentication lands (4b) authenticated reads bypass the cache unless a policy opts them in.
