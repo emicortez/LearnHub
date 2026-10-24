@@ -6,8 +6,8 @@ namespace LearnHub.Catalog.Api.Courses;
 
 // Value-type fields are nullable so a missing field is rejected instead of silently becoming 0 or Guid.Empty.
 // Business rules (title length, currency format) stay in the domain and are not duplicated here.
+// There is no instructor field: the instructor is the signed-in user, taken from the access token.
 public sealed record CreateCourseRequest(
-    [property: Required] Guid? InstructorId,
     string? Title,
     [property: Required] decimal? Price,
     string? Currency);

@@ -84,7 +84,7 @@ public sealed class OutputCachingTests
         // the publish itself goes through the API, and it is the write whose eviction is under test.
         var course = await host.Repository.Inner.GetAsync(id, TestContext.Current.CancellationToken);
         Assert.True(course!.AddLesson("Introduction", TimeSpan.FromMinutes(5)).IsSuccess);
-        var publish = await host.Client.PostAsync(
+        var publish = await host.Writer.PostAsync(
             $"/courses/{id}/publish", content: null, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, publish.StatusCode);
 
@@ -99,8 +99,8 @@ public sealed class OutputCachingTests
         await using var host = new CachingHost();
         await host.GetJsonAsync("/courses?limit=10");
 
-        var request = new { instructorId = Guid.NewGuid(), title = "", price = 10m, currency = "USD" };
-        var failed = await host.Client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
+        var request = new { title = "", price = 10m, currency = "USD" };
+        var failed = await host.Writer.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.BadRequest, failed.StatusCode);
         await host.GetJsonAsync("/courses?limit=10");
 
@@ -117,16 +117,20 @@ public sealed class OutputCachingTests
             _host = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
                 services.Replace(ServiceDescriptor.Singleton<ICourseRepository>(Repository))));
             Client = _host.CreateClient();
+            Writer = _host.CreateAuthenticatedClient(Guid.NewGuid());
         }
 
         public CountingCourseRepository Repository { get; } = new(new InMemoryCourseRepository());
 
+        // Reads stay anonymous: the output cache skips any request that carries an Authorization header.
         public HttpClient Client { get; }
+
+        public HttpClient Writer { get; }
 
         public async Task<Guid> CreateCourseAsync(string title)
         {
-            var request = new { instructorId = Guid.NewGuid(), title, price = 10m, currency = "USD" };
-            var response = await Client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
+            var request = new { title, price = 10m, currency = "USD" };
+            var response = await Writer.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
             return (await ReadJsonAsync(response)).GetProperty("id").GetGuid();

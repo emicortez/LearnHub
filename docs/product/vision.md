@@ -25,6 +25,8 @@ Online courses are mostly passive: long videos, little help when you get stuck, 
 
 Roles are claims issued by Identity ([context map](../architecture/context-map.md)); each service authorizes with them.
 
+Users sign up and sign in with Google or with their own email and password. Both go through the identity provider, so LearnHub never sees a password ([ADR 0009](../architecture/adr/0009-delegated-authentication-with-entra-external-id.md)).
+
 ## Key capabilities
 
 | Capability | What it means | Bounded context |

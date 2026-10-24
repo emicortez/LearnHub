@@ -10,9 +10,9 @@ public sealed class CourseEndpointsTests(CatalogApiFactory factory)
     [Fact]
     public async Task Create_course_returns_201_with_a_location_that_resolves_to_the_draft_course()
     {
-        var client = factory.CreateClient();
         var instructorId = Guid.NewGuid();
-        var request = new { instructorId, title = "  Clean Architecture in .NET  ", price = 49.99m, currency = "usd" };
+        var client = factory.CreateAuthenticatedClient(instructorId);
+        var request = new { title = "  Clean Architecture in .NET  ", price = 49.99m, currency = "usd" };
 
         var created = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
 
@@ -43,8 +43,8 @@ public sealed class CourseEndpointsTests(CatalogApiFactory factory)
     public async Task Create_course_with_invalid_data_returns_400_with_the_error_code(
         string title, string currency, string expectedCode)
     {
-        var client = factory.CreateClient();
-        var request = new { instructorId = Guid.NewGuid(), title, price = 10m, currency };
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
+        var request = new { title, price = 10m, currency };
 
         var response = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
 
@@ -56,27 +56,12 @@ public sealed class CourseEndpointsTests(CatalogApiFactory factory)
         Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("detail").GetString()));
     }
 
-    [Fact]
-    public async Task Create_course_with_an_empty_instructor_returns_400_instead_of_failing()
-    {
-        var client = factory.CreateClient();
-        var request = new { instructorId = Guid.Empty, title = "Domain-Driven Design", price = 10m, currency = "USD" };
-
-        var response = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var problem = await ReadJsonAsync(response);
-        Assert.Equal("catalog.course.instructor_required", problem.GetProperty("code").GetString());
-        Assert.NotEqual("catalog.course.instructor_required", problem.GetProperty("title").GetString());
-    }
-
     [Theory]
-    [InlineData("""{ "title": "Docker", "price": 10, "currency": "USD" }""", "InstructorId")]
-    [InlineData("""{ "instructorId": "0198a0b4-0000-7000-8000-000000000001", "title": "Docker", "currency": "USD" }""", "Price")]
+    [InlineData("""{ "title": "Docker", "currency": "USD" }""", "Price")]
     public async Task Create_course_with_a_missing_required_field_returns_400_listing_the_field(
         string json, string expectedField)
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         var response = await client.PostAsync("/courses", content, TestContext.Current.CancellationToken);
@@ -91,8 +76,8 @@ public sealed class CourseEndpointsTests(CatalogApiFactory factory)
     [Fact]
     public async Task Create_course_with_an_explicit_zero_price_creates_a_free_course()
     {
-        var client = factory.CreateClient();
-        var request = new { instructorId = Guid.NewGuid(), title = "Git for beginners", price = 0m, currency = "USD" };
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
+        var request = new { title = "Git for beginners", price = 0m, currency = "USD" };
 
         var response = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
 

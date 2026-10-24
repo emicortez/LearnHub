@@ -19,7 +19,7 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
     [Fact]
     public async Task A_retry_with_the_same_key_replays_the_response_and_creates_only_one_course()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         var key = NewKey();
         var request = NewRequest();
 
@@ -42,7 +42,7 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
     [Fact]
     public async Task Reusing_a_key_with_a_different_body_returns_422()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         var key = NewKey();
 
         var first = await PostAsync(client, NewRequest(), key);
@@ -55,7 +55,7 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
     [Fact]
     public async Task A_key_still_in_flight_returns_409()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         var key = NewKey();
         // Seeding the store directly makes the in-flight state deterministic, with no concurrent requests.
         var store = factory.Services.GetRequiredService<IIdempotencyStore>();
@@ -69,7 +69,7 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
     [Fact]
     public async Task Without_the_header_every_post_creates_a_course()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         var request = NewRequest();
 
         var first = await PostAsync(client, request, key: null);
@@ -88,7 +88,7 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
     [MemberData(nameof(InvalidKeys))]
     public async Task An_invalid_key_returns_400(string key)
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
 
         var response = await PostAsync(client, NewRequest(), key);
 
@@ -109,6 +109,7 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
                 http.Request.Path = "/courses";
                 http.Request.ContentType = "application/json";
                 http.Request.Headers[HeaderName] = string.Empty;
+                http.Request.Headers.Authorization = $"Bearer {TestTokens.For(Guid.NewGuid())}";
                 http.Request.ContentLength = body.Length;
                 http.Request.Body = new MemoryStream(body);
                 http.Features.Set<IHttpRequestBodyDetectionFeature>(new HasBody());
@@ -124,7 +125,7 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
     [Fact]
     public async Task A_failed_request_releases_the_key_so_the_corrected_request_succeeds()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         var key = NewKey();
 
         var failed = await PostAsync(client, NewRequest() with { Title = "" }, key);
@@ -137,7 +138,7 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
 
     private static string NewKey() => Guid.NewGuid().ToString();
 
-    private static CourseRequest NewRequest() => new(Guid.NewGuid(), $"Idempotency {Guid.NewGuid():N}", 10m, "USD");
+    private static CourseRequest NewRequest() => new($"Idempotency {Guid.NewGuid():N}", 10m, "USD");
 
     private static async Task<HttpResponseMessage> PostAsync(HttpClient client, CourseRequest request, string? key)
     {
@@ -188,5 +189,5 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
         public bool CanHaveBody => true;
     }
 
-    private sealed record CourseRequest(Guid InstructorId, string Title, decimal Price, string Currency);
+    private sealed record CourseRequest(string Title, decimal Price, string Currency);
 }

@@ -29,6 +29,11 @@
     <PackageVersion Include="MessagePack" Version="2.5.303" />
   </ItemGroup>
 
+  <!-- Authentication -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
+  </ItemGroup>
+
   <!-- API documentation -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
