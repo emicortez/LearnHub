@@ -5,7 +5,7 @@ LearnHub is built like a team product: small pull requests, automated checks and
 ## Prerequisites
 
 - .NET SDK pinned in [`global.json`](global.json) (10.0.4xx)
-- Docker, for Aspire resources and integration tests (from upcoming modules)
+- Docker, for Aspire resources (PostgreSQL) and the database tests (Testcontainers)
 
 ## Workflow (trunk-based)
 
