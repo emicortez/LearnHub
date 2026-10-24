@@ -47,6 +47,16 @@ public sealed class ErrorTests
     }
 
     [Fact]
+    public void Forbidden_factory_creates_a_forbidden_error()
+    {
+        var error = Error.Forbidden("catalog.course.not_owner", "Only the course's instructor can publish it.");
+
+        Assert.Equal(ErrorType.Forbidden, error.Type);
+        Assert.Equal("catalog.course.not_owner", error.Code);
+        Assert.Equal("Only the course's instructor can publish it.", error.Description);
+    }
+
+    [Fact]
     public void Errors_with_same_type_code_and_description_are_equal()
     {
         Assert.Equal(

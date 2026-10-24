@@ -27,6 +27,20 @@ Roles are claims issued by Identity ([context map](../architecture/context-map.m
 
 Users sign up and sign in with Google or with their own email and password. Both go through the identity provider, so LearnHub never sees a password ([ADR 0009](../architecture/adr/0009-delegated-authentication-with-entra-external-id.md)).
 
+### Who may do what
+
+| Rule | Status |
+|---|---|
+| Only a user with the `instructor` role creates courses, and only through an app granted the `courses.write` scope | Built |
+| Only the course's instructor publishes it; anyone else gets 403 | Built |
+| Becoming an instructor needs a platform admin's approval; signing up grants no instructor role | Decided (assigned in the identity provider) |
+| Instructor and student are separate accounts. An instructor may link a separate student account to switch quickly, but each keeps its own roles, tokens, and courses | Decided, not built |
+| An admin never publishes or unpublishes on an instructor's behalf; they can suspend a course and request changes | Decided, not built |
+| A draft is visible only to its instructor and to admins; anyone else gets 404. Published courses are public | Decided, not built |
+| Editorial flow: the instructor submits a final version (`InReview`), an admin approves it or requests changes, and only after `Approved` does the instructor publish. Nothing is published while in review | Decided, not built |
+
+The rules that are not built yet arrive with the features that need them: lessons, then review and moderation. Today publishing goes straight from draft to published, and it needs lessons, which cannot be added yet.
+
 ## Key capabilities
 
 | Capability | What it means | Bounded context |
@@ -52,8 +66,6 @@ The AI capabilities are what make LearnHub different from a classic course marke
 ## Open questions
 
 - **Business model:** paid courses through a payment provider, free courses only, or both?
-- **Who can teach:** can any student become an instructor, or does a platform admin approve instructors?
-- **Multiple roles:** can one user be an instructor and a student at the same time? (Likely yes, as on Udemy.)
 - **Source for AI summaries:** a video's transcript is not freely downloadable through the official YouTube API unless you own the video. Summaries may need instructor-provided transcripts or notes.
 - **Whiteboard scope:** personal notes per lesson, or shared between students?
 

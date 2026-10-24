@@ -15,6 +15,8 @@ public static class TestTokens
 {
     public const string Issuer = "https://identity.test.learnhub.local/";
     public const string Audience = "api://learnhub-catalog";
+    public const string WriteScope = "courses.write";
+    public const string InstructorRole = "instructor";
 
     public static readonly RsaSecurityKey SigningKey = new(RSA.Create(2048)) { KeyId = "test-key" };
 
@@ -28,13 +30,23 @@ public static class TestTokens
         DateTime? notBefore = null,
         SigningCredentials? credentials = null,
         bool includeUserId = true,
-        bool includeExpiry = true)
+        bool includeExpiry = true,
+        string[]? roles = null,
+        string? scope = WriteScope)
     {
         var now = DateTime.UtcNow;
         var claims = new Dictionary<string, object>();
         if (includeUserId)
         {
             claims["oid"] = userId.ToString();
+        }
+
+        // Entra's shape: app roles as a "roles" array, and delegated scopes as one space-separated "scp" string.
+        // An app-only (Client Credentials) token has roles but no scp.
+        claims["roles"] = roles ?? [InstructorRole];
+        if (scope is not null)
+        {
+            claims["scp"] = scope;
         }
 
         var descriptor = new SecurityTokenDescriptor
@@ -63,12 +75,18 @@ public static class TestTokens
         return $"{header}.{payload}.";
     }
 
-    public static HttpClient CreateAuthenticatedClient(this WebApplicationFactory<Program> factory, Guid userId)
+    /// <summary>
+    /// A client signed in as an instructor with the write scope, the caller of every write endpoint.
+    /// </summary>
+    public static HttpClient CreateAuthenticatedClient(this WebApplicationFactory<Program> factory, Guid userId) =>
+        factory.CreateClientWithToken(For(userId));
+
+    public static HttpClient CreateClientWithToken(this WebApplicationFactory<Program> factory, string token)
     {
         ArgumentNullException.ThrowIfNull(factory);
 
         var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", For(userId));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return client;
     }
 }

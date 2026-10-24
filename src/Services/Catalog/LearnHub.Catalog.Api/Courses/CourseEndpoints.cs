@@ -21,10 +21,10 @@ public static class CourseEndpoints
 
         // ProblemHttpResult picks its status at runtime, so error responses are declared explicitly
         // for the OpenAPI document; typed results such as Ok<T> and NotFound document themselves.
-        // Writes need a signed-in user (401 without a valid token, 403 without a usable user id); reads stay public.
+        // Writes need a signed-in instructor (401 without a valid token, 403 for anyone else); reads stay public.
         group.MapPost("/", CreateCourseAsync)
             .WithSummary("Create a draft course")
-            .RequireAuthorization()
+            .RequireAuthorization(CatalogPolicies.Instructor)
             .RequireRateLimiting(RateLimitingServiceCollectionExtensions.WritesPolicy)
             .AddEndpointFilter<IdempotencyFilter<CreateCourseRequest>>()
             // Inside the idempotency filter, so a replay does not evict: it is not a new write, and the original
@@ -49,7 +49,7 @@ public static class CourseEndpoints
 
         group.MapPost("/{id:guid}/publish", PublishCourseAsync)
             .WithSummary("Publish a draft course")
-            .RequireAuthorization()
+            .RequireAuthorization(CatalogPolicies.Instructor)
             .RequireRateLimiting(RateLimitingServiceCollectionExtensions.WritesPolicy)
             .AddEndpointFilter<EvictCoursesCacheFilter>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -125,10 +125,12 @@ public static class CourseEndpoints
 
     private static async Task<Results<NoContent, ProblemHttpResult>> PublishCourseAsync(
         Guid id,
+        ClaimsPrincipal user,
         PublishCourseHandler handler,
         CancellationToken cancellationToken)
     {
-        var result = await handler.HandleAsync(new PublishCourse(id), cancellationToken);
+        // The policy proves the caller is an instructor; whether this course is theirs is the use case's decision.
+        var result = await handler.HandleAsync(new PublishCourse(id, user.GetUserId()), cancellationToken);
 
         return result.IsSuccess
             ? TypedResults.NoContent()

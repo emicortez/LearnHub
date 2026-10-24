@@ -64,7 +64,7 @@ LearnHub.{Service}.Infrastructure/  # EF Core, repositories, external service im
 LearnHub.{Service}.Api/             # Minimal API endpoints, DI wiring, Program.cs
 ```
 
-**Authentication** is delegated to Microsoft Entra External ID (ADR 0009). Each API is a resource server: `AddJwtBearer` reads `Authentication:Schemes:Bearer` (Authority, ValidAudiences), accepts only RS256, and takes the user id from the `oid` claim (Entra's `sub` is pairwise per app). Writes call `RequireAuthorization()`; reads are public. API tests never call the provider: `TestTokens` issues tokens signed with a test key, and `CatalogApiFactory` trusts that key.
+**Authentication** is delegated to Microsoft Entra External ID (ADR 0009). Each API is a resource server: `AddJwtBearer` reads `Authentication:Schemes:Bearer` (Authority, ValidAudiences), accepts only RS256, and takes the user id from the `oid` claim (Entra's `sub` is pairwise per app). Writes require the `Instructor` policy (`Authentication/CatalogPolicies.cs`): a delegated token (with `scp`) carrying the `courses.write` scope and the `instructor` app role (`roles` claim). Ownership is a business rule checked in the use case (`PublishCourse.RequestedBy`), returning `Error.Forbidden` → 403. Reads are public. API tests never call the provider: `TestTokens` issues tokens signed with a test key, and `CatalogApiFactory` trusts that key.
 
 Dependency rule: `Domain ← Application ← Infrastructure ← Api`. Services communicate through HTTP (sync) or Wolverine messaging (async), never through project references to another service (enforced by `ServiceIsolationTests`). MediatR, MassTransit and AutoMapper are not used (commercial licenses).
 
@@ -77,7 +77,7 @@ These invariants apply once domain projects exist — do not break them:
 - **Aggregates are created through factory methods** (`Course.Create(...)`). The private parameterless constructor exists only for EF Core. Entities and value objects have no public constructors and no public setters — enforced by `DomainEncapsulationTests`.
 - **Domain events are raised inside aggregates and dispatched by Infrastructure** after saving, then cleared.
 - **Value objects are immutable and equal by value.**
-- **Error codes follow `{service}.{entity}.{problem}`** (e.g. `catalog.course.title_required`) and every error has a type, created through `Error.Validation`, `Error.NotFound` or `Error.Conflict`. The Api maps the type to 400, 404 or 409 in `Errors/ErrorResults.cs` (Problem Details with a `code` extension); unexpected exceptions become a generic 500 through `UnhandledExceptionHandler`.
+- **Error codes follow `{service}.{entity}.{problem}`** (e.g. `catalog.course.title_required`) and every error has a type, created through `Error.Validation`, `Error.NotFound`, `Error.Conflict` or `Error.Forbidden`. The Api maps the type to 400, 404, 409 or 403 in `Errors/ErrorResults.cs` (Problem Details with a `code` extension); unexpected exceptions become a generic 500 through `UnhandledExceptionHandler`.
 
 ## Workflow
 
