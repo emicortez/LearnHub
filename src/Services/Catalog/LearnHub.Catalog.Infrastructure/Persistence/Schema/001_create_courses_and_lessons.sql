@@ -2,6 +2,8 @@
 -- The domain validates first to return useful errors; these constraints keep the stored data valid whatever writes it
 -- (scripts, migrations, bugs, concurrent requests). Every constraint is named so a violation says which rule failed.
 -- Applied by the schema tests today; EF Core migrations take over in module 6 and must reproduce this contract.
+-- "Not blank" means at least one non-whitespace character: btrim() alone trims only spaces, so a tab-only title would
+-- pass, while the domain's string.Trim() removes every kind of whitespace.
 
 CREATE TABLE courses
 (
@@ -25,10 +27,10 @@ CREATE TABLE courses
         CHECK (instructor_id <> '00000000-0000-0000-0000-000000000000'::uuid),
 
     CONSTRAINT ck_courses_title_length
-        CHECK (char_length(btrim(title)) BETWEEN 1 AND 120),
+        CHECK (title ~ '[^[:space:]]' AND char_length(btrim(title)) <= 120),
 
     CONSTRAINT ck_courses_slug_not_blank
-        CHECK (char_length(btrim(slug)) > 0),
+        CHECK (slug ~ '[^[:space:]]'),
 
     CONSTRAINT ck_courses_price_range
         CHECK (price_amount BETWEEN 0 AND 9999999999.99),
@@ -65,7 +67,7 @@ CREATE TABLE lessons
         UNIQUE (course_id, position),
 
     CONSTRAINT ck_lessons_title_not_blank
-        CHECK (char_length(btrim(title)) > 0),
+        CHECK (title ~ '[^[:space:]]'),
 
     CONSTRAINT ck_lessons_duration_positive
         CHECK (duration_seconds > 0),

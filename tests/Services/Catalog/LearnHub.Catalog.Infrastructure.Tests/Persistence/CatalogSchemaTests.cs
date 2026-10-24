@@ -95,6 +95,7 @@ public sealed class CatalogSchemaTests(CatalogDatabaseFixture database)
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
+    [InlineData("\t\r\n")]
     public async Task Blank_course_title_is_rejected_with_a_check_violation(string title)
     {
         var error = await Assert.ThrowsAsync<PostgresException>(() => InsertCourseAsync(_db, title: title));
@@ -110,10 +111,12 @@ public sealed class CatalogSchemaTests(CatalogDatabaseFixture database)
         AssertViolation(error, PostgresErrorCodes.CheckViolation, "ck_courses_title_length");
     }
 
-    [Fact]
-    public async Task Blank_slug_is_rejected_with_a_check_violation()
+    [Theory]
+    [InlineData(" ")]
+    [InlineData("\t")]
+    public async Task Blank_slug_is_rejected_with_a_check_violation(string slug)
     {
-        var error = await Assert.ThrowsAsync<PostgresException>(() => InsertCourseAsync(_db, slug: " "));
+        var error = await Assert.ThrowsAsync<PostgresException>(() => InsertCourseAsync(_db, slug: slug));
 
         AssertViolation(error, PostgresErrorCodes.CheckViolation, "ck_courses_slug_not_blank");
     }
@@ -214,13 +217,15 @@ public sealed class CatalogSchemaTests(CatalogDatabaseFixture database)
         AssertViolation(error, PostgresErrorCodes.CheckViolation, "ck_lessons_duration_positive");
     }
 
-    [Fact]
-    public async Task Blank_lesson_title_is_rejected_with_a_check_violation()
+    [Theory]
+    [InlineData("  ")]
+    [InlineData("\t\n")]
+    public async Task Blank_lesson_title_is_rejected_with_a_check_violation(string title)
     {
         var courseId = await InsertCourseAsync(_db);
 
         var error = await Assert.ThrowsAsync<PostgresException>(
-            () => InsertLessonAsync(_db, courseId, position: 1, title: "  "));
+            () => InsertLessonAsync(_db, courseId, position: 1, title: title));
 
         AssertViolation(error, PostgresErrorCodes.CheckViolation, "ck_lessons_title_not_blank");
     }
