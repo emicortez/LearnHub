@@ -26,15 +26,16 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup .NET (version from global.json)
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
+      # Locked mode: fails if packages.lock.json does not match what the projects resolve.
       - name: Restore
-        run: dotnet restore LearnHub.slnx
+        run: dotnet restore LearnHub.slnx --locked-mode
 
       - name: Check formatting
         run: dotnet format LearnHub.slnx --verify-no-changes --no-restore

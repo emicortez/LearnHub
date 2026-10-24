@@ -5,6 +5,10 @@
     <!-- Run with 'dotnet run'; the optional Aspire CLI bundle is not required yet. -->
     <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
     <UserSecretsId>da0f484f-8f2d-448b-8918-68ff5dea2258</UserSecretsId>
+    <!-- No lock file here: the Aspire SDK adds the dashboard and orchestrator packages for the machine's own runtime
+         (win-x64, linux-x64, ...), so a lock file from one OS fails locked-mode restore on another. The AppHost only
+         orchestrates local development and never ships; Central Package Management and NuGet Audit still cover it. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
 
   <ItemGroup>

@@ -14,7 +14,7 @@ dotnet run --project src/AppHost/LearnHub.AppHost
 # In Development each API serves /openapi/v1.json and an interactive UI at /scalar
 
 # Same checks as CI (.github/workflows/ci.yml)
-dotnet restore LearnHub.slnx
+dotnet restore LearnHub.slnx --locked-mode
 dotnet format LearnHub.slnx --verify-no-changes --no-restore
 dotnet build LearnHub.slnx --configuration Release --no-restore
 dotnet test --solution LearnHub.slnx --configuration Release --no-build
@@ -35,6 +35,14 @@ Tests run on **Microsoft.Testing.Platform** (`global.json` → `"test": { "runne
 - `global.json` pins the SDK (10.0.4xx, `latestFeature`).
 - `Directory.Build.props`: `net10.0`, nullable, `AnalysisLevel latest-recommended`, `EnforceCodeStyleInBuild`, `TreatWarningsAsErrors`. A warning breaks the build — fix it, do not suppress it without a comment explaining why.
 - `Directory.Packages.props`: Central Package Management with transitive pinning. Versions go only here; `PackageReference` never has `Version` (NU1008).
+- Supply chain:
+  - lock files (`packages.lock.json`, committed; CI restores with `--locked-mode`) in every project except the AppHost, whose Aspire packages are per-OS;
+  - NuGet Audit `all`/`moderate`, so a moderate or higher advisory fails the build;
+  - package source mapping in `NuGet.config`;
+  - Dependabot weekly for NuGet and Actions;
+  - Actions pinned by SHA.
+
+  Secrets never go in the repo; where they live per environment is in `CONTRIBUTING.md`.
 - `.editorconfig` is enforced at build: LF line endings, file-scoped namespaces. `CA1707` is disabled only under `tests/**` (underscored test names).
 
 ## Architecture
