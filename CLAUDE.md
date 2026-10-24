@@ -26,6 +26,8 @@ dotnet format LearnHub.slnx
 dotnet test --solution LearnHub.slnx --filter-class "*HealthEndpointsTests"
 ```
 
+Tests need **Docker** running: `LearnHub.Catalog.Infrastructure.Tests` starts a PostgreSQL container (Testcontainers), and the AppHost runs PostgreSQL as a container too.
+
 Tests run on **Microsoft.Testing.Platform** (`global.json` → `"test": { "runner": "Microsoft.Testing.Platform" }`); VSTest is not used. Test projects have `OutputType Exe` and do not reference `Microsoft.NET.Test.Sdk`.
 
 **NuGet**: a local `NuGet.config` at the root restricts sources to `nuget.org` only. The global user config includes a Telerik feed that requires credentials and breaks restores — the local config overrides it. Never remove `NuGet.config`.
@@ -55,9 +57,10 @@ src/BuildingBlocks/LearnHub.ServiceDefaults  AddServiceDefaults() / MapDefaultEn
 src/BuildingBlocks/LearnHub.SharedKernel     Entity, AggregateRoot, ValueObject, Result, Error
 src/Services/Catalog/LearnHub.Catalog.Domain          Course aggregate, value objects, domain events
 src/Services/Catalog/LearnHub.Catalog.Application     Use-case handlers (plain classes until Wolverine), ICourseRepository
-src/Services/Catalog/LearnHub.Catalog.Infrastructure  In-memory repository (replaced by EF Core in module 6)
+src/Services/Catalog/LearnHub.Catalog.Infrastructure  In-memory repository (replaced by EF Core in module 6); PostgreSQL schema in Persistence/Schema/*.sql
 src/Services/Catalog/LearnHub.Catalog.Api             Minimal API endpoints by feature (Courses/CourseEndpoints.cs)
 tests/Services/Catalog/LearnHub.Catalog.Api.Tests     WebApplicationFactory integration tests
+tests/Services/Catalog/LearnHub.Catalog.Infrastructure.Tests  Schema tests against a real PostgreSQL container (Testcontainers)
 tests/LearnHub.Architecture.Tests                     Dependency, encapsulation, layer and service-isolation rules
 ```
 
@@ -71,6 +74,13 @@ LearnHub.{Service}.Application/     # Wolverine handlers, validators
 LearnHub.{Service}.Infrastructure/  # EF Core, repositories, external service implementations
 LearnHub.{Service}.Api/             # Minimal API endpoints, DI wiring, Program.cs
 ```
+
+**Persistence**: the AppHost runs one PostgreSQL server (`postgres`, image `postgres:18.3`, data volume) with one database per service (ADR 0002); Catalog's is `catalog`, passed to `catalog-api` as `ConnectionStrings:catalog`. Catalog's schema is versioned SQL in `LearnHub.Catalog.Infrastructure/Persistence/Schema/` (applied by the schema tests; EF Core migrations take over in module 6 and must reproduce it):
+- every constraint is named (`pk_`, `uq_`, `fk_`, `ck_`), so a violation reports which rule failed through its SQLSTATE (`23505`, `23514`, `23503`) and constraint name;
+- money is unconstrained `numeric` with explicit range and scale checks, because `numeric(12, 2)` silently rounds extra decimals;
+- `lessons.course_id` cascades on delete (lessons belong to the aggregate);
+- no foreign key ever crosses services or points at the identity provider (`instructor_id` is the Entra `oid`).
+The schema tests use the same image as the AppHost; keep them in sync.
 
 **Authentication** is delegated to Microsoft Entra External ID (ADR 0009). Each API is a resource server: `AddJwtBearer` reads `Authentication:Schemes:Bearer` (Authority, ValidAudiences), accepts only RS256, and takes the user id from the `oid` claim (Entra's `sub` is pairwise per app). Writes require the `Instructor` policy (`Authentication/CatalogPolicies.cs`): a delegated token (with `scp`) carrying the `courses.write` scope and the `instructor` app role (`roles` claim). Ownership is a business rule checked in the use case (`PublishCourse.RequestedBy`), returning `Error.Forbidden` → 403. Reads are public. API tests never call the provider: `TestTokens` issues tokens signed with a test key, and `CatalogApiFactory` trusts that key.
 

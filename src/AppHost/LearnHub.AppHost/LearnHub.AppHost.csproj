@@ -12,6 +12,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\Services\Catalog\LearnHub.Catalog.Api\LearnHub.Catalog.Api.csproj" />
   </ItemGroup>
 
