@@ -6,6 +6,7 @@ using LearnHub.Catalog.Application.Courses;
 using LearnHub.Catalog.Domain.Courses;
 
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,7 @@ public sealed class SecurityHeadersTests(CatalogApiFactory factory)
     : IClassFixture<CatalogApiFactory>
 {
     private const string ApiContentSecurityPolicy = "default-src 'none'; frame-ancestors 'none'";
+    private const string Hsts = "max-age=31536000";
 
     private static readonly object CourseRequest = new { title = "Security Headers", price = 10m, currency = "USD" };
 
@@ -123,16 +125,39 @@ public sealed class SecurityHeadersTests(CatalogApiFactory factory)
         Assert.False(response.Headers.CacheControl?.NoStore ?? false, "An anonymous public read must not be no-store.");
     }
 
-    [Theory]
-    [InlineData("Development")]
-    [InlineData("Production")]
-    public async Task The_api_never_sends_hsts_because_the_tls_proxy_owns_it(string environment)
+    // Behind the ingress the request arrives over plain HTTP; the forwarded headers restore https before the response
+    // starts (ForwardedHeadersTests covers that hop). Here the test client calls over https directly.
+    [Fact]
+    public async Task An_https_response_outside_development_tells_the_browser_to_use_https_from_now_on()
     {
-        var client = factory.WithWebHostBuilder(builder => builder.UseEnvironment(environment)).CreateClient();
+        var response = await HttpsClient("Production", "https://catalog.learnhub.test")
+            .GetAsync("/courses", TestContext.Current.CancellationToken);
 
-        var response = await client.GetAsync("/courses", TestContext.Current.CancellationToken);
+        Assert.Equal([Hsts], Values(response, "Strict-Transport-Security"));
+    }
 
-        Assert.False(response.Headers.Contains("Strict-Transport-Security"));
+    [Fact]
+    public async Task An_error_over_https_also_carries_hsts()
+    {
+        var response = await HttpsClient("Production", "https://catalog.learnhub.test")
+            .PostAsJsonAsync("/courses", CourseRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal([Hsts], Values(response, "Strict-Transport-Security"));
+    }
+
+    [Theory]
+    // A browser would remember it for localhost and force https on every local app for a year.
+    [InlineData("Development", "https://catalog.learnhub.test")]
+    [InlineData("Production", "https://localhost")]
+    [InlineData("Production", "https://127.0.0.1")]
+    // Browsers ignore HSTS received over http, and an attacker in the middle could strip it anyway.
+    [InlineData("Production", "http://catalog.learnhub.test")]
+    public async Task No_hsts_in_development_on_loopback_or_over_http(string environment, string baseAddress)
+    {
+        var response = await HttpsClient(environment, baseAddress).GetAsync("/courses", TestContext.Current.CancellationToken);
+
+        Assert.Empty(Values(response, "Strict-Transport-Security"));
     }
 
     [Fact]
@@ -166,6 +191,10 @@ public sealed class SecurityHeadersTests(CatalogApiFactory factory)
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         AssertSecurityHeaders(response);
     }
+
+    private HttpClient HttpsClient(string environment, string baseAddress) =>
+        factory.WithWebHostBuilder(builder => builder.UseEnvironment(environment))
+            .CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri(baseAddress) });
 
     private static void AssertSecurityHeaders(HttpResponseMessage response)
     {
