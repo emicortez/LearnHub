@@ -17,7 +17,7 @@ The web frontend needs to call LearnHub's APIs as the signed-in user. The APIs a
 The web frontend talks to LearnHub through a **Backend for Frontend (BFF)**, served from the same origin as the frontend.
 
 - The BFF is a confidential OpenID Connect client. It runs Authorization Code + PKCE, and stores and refreshes the tokens on the server.
-- The browser receives only a session cookie: `__Host-` prefix, `HttpOnly`, `Secure`, `SameSite=Strict`. It never sees an OAuth token.
+- The browser receives only a session cookie: `__Host-Http-` prefix (RFC 10017), so it can only be set over HTTP, never from JavaScript, `HttpOnly`, `Secure`, `SameSite=Strict`. It never sees an OAuth token.
 - The BFF protects its state-changing endpoints against CSRF: it requires a custom header or an antiforgery token, and checks `Origin`.
 - The BFF forwards calls to the APIs with `Authorization: Bearer <access token>`.
 - The APIs stay bearer-only. They never authenticate a cookie, so they need no antiforgery.
