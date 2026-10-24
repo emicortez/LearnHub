@@ -88,7 +88,7 @@ public sealed class ForwardedHeadersTests
                 .UseSetting("RateLimiting:Writes:TokensPerPeriod", "1")
                 .UseSetting("RateLimiting:Writes:ReplenishmentPeriod", "01:00:00")
                 .ConfigureServices(services => services.AddSingleton<IStartupFilter>(new RemoteIpStartupFilter(remoteIp))))
-            .CreateClient();
+            .CreateAuthenticatedClient(Guid.NewGuid());
 
     private static async Task<HttpResponseMessage> CreateCourseAsync(
         HttpClient client, string forwardedFor, string? forwardedProto = null)
@@ -97,7 +97,6 @@ public sealed class ForwardedHeadersTests
         {
             Content = JsonContent.Create(new
             {
-                instructorId = Guid.NewGuid(),
                 title = "Forwarded Headers in ASP.NET Core",
                 price = 10m,
                 currency = "USD",

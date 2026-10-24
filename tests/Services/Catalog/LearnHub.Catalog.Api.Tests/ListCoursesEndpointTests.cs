@@ -12,7 +12,7 @@ public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
     [Fact]
     public async Task Paging_with_the_cursor_returns_every_course_exactly_once()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         var created = await CreateCoursesAsync(client, 7);
 
         var pages = await ReadAllPagesAsync(client, "/courses?limit=3");
@@ -26,7 +26,7 @@ public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
     [Fact]
     public async Task The_last_page_has_no_next_cursor()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         await CreateCoursesAsync(client, 4);
 
         var pages = await ReadAllPagesAsync(client, "/courses?limit=3");
@@ -40,7 +40,7 @@ public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
     [Fact]
     public async Task List_items_carry_the_course_summary()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         var created = await CreateCoursesAsync(client, 1);
 
         var pages = await ReadAllPagesAsync(client, "/courses?limit=100");
@@ -56,7 +56,7 @@ public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
     [Fact]
     public async Task Omitting_the_limit_returns_at_most_20_items()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         await CreateCoursesAsync(client, 21);
 
         var response = await client.GetAsync("/courses", TestContext.Current.CancellationToken);
@@ -70,7 +70,7 @@ public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
     [Fact]
     public async Task An_invalid_cursor_returns_400_with_the_error_code()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
 
         var response = await client.GetAsync("/courses?cursor=not-a-cursor!", TestContext.Current.CancellationToken);
 
@@ -85,7 +85,7 @@ public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
     [InlineData(101)]
     public async Task An_out_of_range_limit_returns_400_listing_the_field(int limit)
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
 
         var response = await client.GetAsync($"/courses?limit={limit}", TestContext.Current.CancellationToken);
 
@@ -101,7 +101,7 @@ public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
         var ids = new List<Guid>();
         for (var i = 0; i < count; i++)
         {
-            var request = new { instructorId = Guid.NewGuid(), title = $"Course {i}", price = 10m, currency = "USD" };
+            var request = new { title = $"Course {i}", price = 10m, currency = "USD" };
             var response = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
             ids.Add((await ReadJsonAsync(response)).GetProperty("id").GetGuid());

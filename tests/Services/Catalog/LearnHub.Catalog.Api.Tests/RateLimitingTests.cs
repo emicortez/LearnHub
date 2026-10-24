@@ -17,7 +17,7 @@ public sealed class RateLimitingTests
     public async Task Create_course_beyond_the_write_limit_returns_429_with_problem_details_and_retry_after()
     {
         await using var factory = new CatalogApiFactory();
-        var client = WithWriteLimit(factory, tokenLimit: 2).CreateClient();
+        var client = WithWriteLimit(factory, tokenLimit: 2).CreateAuthenticatedClient(Guid.NewGuid());
 
         await CreateCourseAsync(client);
         await CreateCourseAsync(client);
@@ -37,7 +37,7 @@ public sealed class RateLimitingTests
     public async Task Publish_course_beyond_the_write_limit_returns_429()
     {
         await using var factory = new CatalogApiFactory();
-        var client = WithWriteLimit(factory, tokenLimit: 1).CreateClient();
+        var client = WithWriteLimit(factory, tokenLimit: 1).CreateAuthenticatedClient(Guid.NewGuid());
 
         await client.PostAsync($"/courses/{Guid.NewGuid()}/publish", content: null, TestContext.Current.CancellationToken);
         var response = await client.PostAsync(
@@ -52,7 +52,7 @@ public sealed class RateLimitingTests
     public async Task Reads_are_not_rate_limited()
     {
         await using var factory = new CatalogApiFactory();
-        var client = WithWriteLimit(factory, tokenLimit: 1).CreateClient();
+        var client = WithWriteLimit(factory, tokenLimit: 1).CreateAuthenticatedClient(Guid.NewGuid());
 
         for (var i = 0; i < 20; i++)
         {
@@ -80,7 +80,7 @@ public sealed class RateLimitingTests
 
     private static async Task<HttpResponseMessage> CreateCourseAsync(HttpClient client)
     {
-        var request = new { instructorId = Guid.NewGuid(), title = "Rate Limiting in ASP.NET Core", price = 10m, currency = "USD" };
+        var request = new { title = "Rate Limiting in ASP.NET Core", price = 10m, currency = "USD" };
         return await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
     }
 

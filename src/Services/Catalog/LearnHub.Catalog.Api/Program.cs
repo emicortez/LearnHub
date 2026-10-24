@@ -1,3 +1,4 @@
+using LearnHub.Catalog.Api.Authentication;
 using LearnHub.Catalog.Api.Caching;
 using LearnHub.Catalog.Api.Courses;
 using LearnHub.Catalog.Api.Errors;
@@ -18,6 +19,7 @@ builder.Services.AddValidation();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<UnhandledExceptionHandler>();
 
+builder.Services.AddCatalogAuthentication();
 builder.Services.AddIdempotency();
 builder.Services.AddCatalogRateLimiting(builder.Configuration);
 builder.Services.AddCatalogOutputCaching();
@@ -35,8 +37,12 @@ app.UseForwardedHeaders();
 app.UseExceptionHandler();
 // Gives empty error responses (such as an unmatched route's 404) a Problem Details body.
 app.UseStatusCodePages();
-// Partitioned by client IP for now (the forwarded one behind a trusted proxy). With per-user partitions (4b) this
-// moves after UseAuthentication.
+// Authentication only builds HttpContext.User from a valid token, leaving the request anonymous otherwise;
+// authorization is what rejects it (401 or 403) on endpoints that require a user.
+app.UseAuthentication();
+app.UseAuthorization();
+// Partitioned by client IP for now (the forwarded one behind a trusted proxy). After authentication, so it can
+// partition by user next.
 app.UseRateLimiter();
 // After the rate limiter and before the endpoints. By default it skips requests with an Authorization header, so once
 // authentication lands (4b) authenticated reads bypass the cache unless a policy opts them in.

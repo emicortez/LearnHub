@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LearnHub.Catalog.Api.Tests;
 
@@ -7,6 +9,8 @@ namespace LearnHub.Catalog.Api.Tests;
 /// The shared host for API tests. Every TestServer request has no remote IP, so all tests share one
 /// write rate-limit partition; the limit is raised far above what any test sends so they are never throttled.
 /// Rate-limit tests lower it again with <c>WithWebHostBuilder</c>.
+/// Tokens come from <see cref="TestTokens"/>: the issuer and audience are set through the same configuration a real
+/// environment uses, and only the signing key replaces the provider's discovery document.
 /// </summary>
 public sealed class CatalogApiFactory : WebApplicationFactory<Program>
 {
@@ -16,5 +20,15 @@ public sealed class CatalogApiFactory : WebApplicationFactory<Program>
 
         builder.UseSetting("RateLimiting:Writes:TokenLimit", "100000");
         builder.UseSetting("RateLimiting:Writes:TokensPerPeriod", "100000");
+
+        builder.UseSetting("Authentication:Schemes:Bearer:ValidIssuer", TestTokens.Issuer);
+        builder.UseSetting("Authentication:Schemes:Bearer:ValidAudiences:0", TestTokens.Audience);
+
+        builder.ConfigureServices(services =>
+            services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+            {
+                options.Authority = null;
+                options.TokenValidationParameters.IssuerSigningKey = TestTokens.SigningKey;
+            }));
     }
 }

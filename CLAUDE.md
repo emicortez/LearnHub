@@ -64,6 +64,8 @@ LearnHub.{Service}.Infrastructure/  # EF Core, repositories, external service im
 LearnHub.{Service}.Api/             # Minimal API endpoints, DI wiring, Program.cs
 ```
 
+**Authentication** is delegated to Microsoft Entra External ID (ADR 0009). Each API is a resource server: `AddJwtBearer` reads `Authentication:Schemes:Bearer` (Authority, ValidAudiences), accepts only RS256, and takes the user id from the `oid` claim (Entra's `sub` is pairwise per app). Writes call `RequireAuthorization()`; reads are public. API tests never call the provider: `TestTokens` issues tokens signed with a test key, and `CatalogApiFactory` trusts that key.
+
 Dependency rule: `Domain ← Application ← Infrastructure ← Api`. Services communicate through HTTP (sync) or Wolverine messaging (async), never through project references to another service (enforced by `ServiceIsolationTests`). MediatR, MassTransit and AutoMapper are not used (commercial licenses).
 
 ## Domain Rules

@@ -1,3 +1,6 @@
+using System.Security.Claims;
+
+using LearnHub.Catalog.Api.Authentication;
 using LearnHub.Catalog.Api.Caching;
 using LearnHub.Catalog.Api.Errors;
 using LearnHub.Catalog.Api.Idempotency;
@@ -18,14 +21,18 @@ public static class CourseEndpoints
 
         // ProblemHttpResult picks its status at runtime, so error responses are declared explicitly
         // for the OpenAPI document; typed results such as Ok<T> and NotFound document themselves.
+        // Writes need a signed-in user (401 without a valid token, 403 without a usable user id); reads stay public.
         group.MapPost("/", CreateCourseAsync)
             .WithSummary("Create a draft course")
+            .RequireAuthorization()
             .RequireRateLimiting(RateLimitingServiceCollectionExtensions.WritesPolicy)
             .AddEndpointFilter<IdempotencyFilter<CreateCourseRequest>>()
             // Inside the idempotency filter, so a replay does not evict: it is not a new write, and the original
             // request already evicted. Evicting again would be harmless, only a wasted cache refill.
             .AddEndpointFilter<EvictCoursesCacheFilter>()
             .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
@@ -42,8 +49,11 @@ public static class CourseEndpoints
 
         group.MapPost("/{id:guid}/publish", PublishCourseAsync)
             .WithSummary("Publish a draft course")
+            .RequireAuthorization()
             .RequireRateLimiting(RateLimitingServiceCollectionExtensions.WritesPolicy)
             .AddEndpointFilter<EvictCoursesCacheFilter>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
@@ -53,12 +63,13 @@ public static class CourseEndpoints
 
     private static async Task<Results<CreatedAtRoute<CreatedCourseResponse>, ProblemHttpResult>> CreateCourseAsync(
         CreateCourseRequest request,
+        ClaimsPrincipal user,
         CreateCourseHandler handler,
         CancellationToken cancellationToken)
     {
-        // Required fields are guaranteed by validation before the handler runs.
-        // instructorId comes from the body until authentication lands; then it is read from the JWT 'sub' claim.
-        var command = new CreateCourse(request.InstructorId!.Value, request.Title, request.Price!.Value, request.Currency);
+        // Required fields are guaranteed by validation before the handler runs. The instructor is whoever the token
+        // says signed in, never a value from the body: the client cannot choose who it is.
+        var command = new CreateCourse(user.GetUserId(), request.Title, request.Price!.Value, request.Currency);
 
         var result = await handler.HandleAsync(command, cancellationToken);
 

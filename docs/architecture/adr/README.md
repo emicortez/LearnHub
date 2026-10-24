@@ -12,6 +12,7 @@ An ADR records one architecturally significant decision: its context, the choice
 | [0006](0006-asynchronous-messaging-by-default.md) | Asynchronous messaging between services by default | Accepted |
 | [0007](0007-no-commercially-licensed-libraries.md) | No commercially licensed libraries | Accepted |
 | [0008](0008-hand-written-architecture-fitness-functions.md) | Hand-written architecture fitness functions | Accepted |
+| [0009](0009-delegated-authentication-with-entra-external-id.md) | Delegated authentication with Microsoft Entra External ID | Accepted |
 
 ## Template
 

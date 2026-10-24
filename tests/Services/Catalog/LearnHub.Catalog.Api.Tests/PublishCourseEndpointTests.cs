@@ -10,7 +10,7 @@ public sealed class PublishCourseEndpointTests(CatalogApiFactory factory)
     [Fact]
     public async Task Publish_course_that_does_not_exist_returns_404_with_the_error_code()
     {
-        var client = factory.CreateClient();
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
 
         var response = await client.PostAsync(
             $"/courses/{Guid.NewGuid()}/publish", content: null, TestContext.Current.CancellationToken);
@@ -25,8 +25,8 @@ public sealed class PublishCourseEndpointTests(CatalogApiFactory factory)
     [Fact]
     public async Task Publish_course_without_lessons_returns_409_with_the_error_code()
     {
-        var client = factory.CreateClient();
-        var request = new { instructorId = Guid.NewGuid(), title = "Event Sourcing", price = 25m, currency = "USD" };
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
+        var request = new { title = "Event Sourcing", price = 25m, currency = "USD" };
         var created = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
         var id = (await ReadJsonAsync(created)).GetProperty("id").GetGuid();
 
