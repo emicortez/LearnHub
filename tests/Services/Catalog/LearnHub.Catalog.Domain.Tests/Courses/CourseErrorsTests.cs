@@ -31,6 +31,13 @@ public sealed class CourseErrorsTests
     }
 
     [Fact]
+    public void Acting_on_someone_elses_course_is_a_forbidden_error()
+    {
+        Assert.Equal(ErrorType.Forbidden, CourseErrors.NotOwner.Type);
+        Assert.Equal("catalog.course.not_owner", CourseErrors.NotOwner.Code);
+    }
+
+    [Fact]
     public void A_missing_course_is_a_not_found_error()
     {
         Assert.Equal(ErrorType.NotFound, CourseErrors.NotFound.Type);

@@ -14,4 +14,7 @@ public enum ErrorType
 
     /// <summary>The operation is not allowed in the current state of the resource.</summary>
     Conflict,
+
+    /// <summary>The caller is known but may not perform the operation on this resource (for example, it is not theirs).</summary>
+    Forbidden,
 }

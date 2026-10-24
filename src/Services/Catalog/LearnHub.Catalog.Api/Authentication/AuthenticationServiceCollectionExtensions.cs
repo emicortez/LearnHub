@@ -17,6 +17,10 @@ public static class AuthenticationServiceCollectionExtensions
     // Enrollment would disagree on it. 'oid' is the user's id across the tenant. With another provider this is 'sub'.
     public const string UserIdClaim = "oid";
 
+    // Entra sends app roles as a "roles" array and delegated scopes as one space-separated "scp" string.
+    public const string RolesClaim = "roles";
+    public const string ScopeClaim = "scp";
+
     public static IServiceCollection AddCatalogAuthentication(this IServiceCollection services)
     {
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -29,16 +33,36 @@ public static class AuthenticationServiceCollectionExtensions
                 options.TokenValidationParameters.ValidAlgorithms = [SecurityAlgorithms.RsaSha256];
                 // The default tolerates five minutes of clock drift, which keeps expired tokens alive too long.
                 options.TokenValidationParameters.ClockSkew = TimeSpan.FromSeconds(30);
+                // With inbound mapping off, ASP.NET must be told which claim holds roles, or IsInRole is always false.
+                options.TokenValidationParameters.RoleClaimType = RolesClaim;
             });
 
         services.AddAuthorization(authorization =>
-            // RequireAuthorization() without a policy uses this one: a valid token whose user id Catalog can trust.
+        {
+            // RequireAuthorization() without a policy uses this one: a person signed in through an app. Delegated
+            // tokens carry scopes; an app-only (Client Credentials) token has none and is not a user here.
             authorization.DefaultPolicy = new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme)
                 .RequireAuthenticatedUser()
-                .RequireAssertion(context => context.User.TryGetUserId(out _))
-                .Build());
+                .RequireAssertion(context => context.User.TryGetUserId(out _) && context.User.HasClaim(c => c.Type == ScopeClaim))
+                .Build();
+
+            // Two independent checks: the app was granted the write scope, and the person holds the instructor role.
+            authorization.AddPolicy(CatalogPolicies.Instructor, policy => policy
+                .Combine(authorization.DefaultPolicy)
+                .RequireAssertion(context => context.User.HasScope(CatalogPolicies.WriteScope))
+                .RequireRole(CatalogPolicies.InstructorRole));
+        });
 
         return services;
+    }
+
+    public static bool HasScope(this ClaimsPrincipal user, string scope)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        return user.FindAll(ScopeClaim)
+            .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .Contains(scope, StringComparer.Ordinal);
     }
 
     public static bool TryGetUserId(this ClaimsPrincipal user, out Guid userId)
