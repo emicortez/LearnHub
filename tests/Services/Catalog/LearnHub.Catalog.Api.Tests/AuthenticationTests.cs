@@ -61,6 +61,9 @@ public sealed class AuthenticationTests(CatalogApiFactory factory)
             { "an HS256 signature", TestTokens.For(userId, credentials: symmetricKey) },
             { "another audience", TestTokens.For(userId, audience: "api://learnhub-enrollment") },
             { "another issuer", TestTokens.For(userId, issuer: "https://attacker.example/") },
+            { "no signature (alg none)", TestTokens.WithoutSignature(userId) },
+            { "no expiry", TestTokens.For(userId, includeExpiry: false) },
+            { "a not-before in the future", TestTokens.For(userId, notBefore: DateTime.UtcNow.AddMinutes(5)) },
             { "a malformed value", "not-a-jwt" },
         };
     }

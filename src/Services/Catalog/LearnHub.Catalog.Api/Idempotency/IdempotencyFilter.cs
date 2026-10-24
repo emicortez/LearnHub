@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
+using LearnHub.Catalog.Api.Authentication;
 using LearnHub.Catalog.Api.Errors;
 using LearnHub.SharedKernel;
 
@@ -42,6 +43,8 @@ public sealed class IdempotencyFilter<TRequest>(IIdempotencyStore store) : IEndp
             return InvalidKey.ToProblem();
         }
 
+        // The endpoint requires a signed-in user, so the key is always scoped to who sent it.
+        key = IdempotencyKeys.ForUser(httpContext.User.GetUserId(), key);
         var fingerprint = Fingerprint(httpContext.Request, context.Arguments.OfType<TRequest>().Single());
         var existing = await store.TryBeginAsync(key, fingerprint, httpContext.RequestAborted);
 

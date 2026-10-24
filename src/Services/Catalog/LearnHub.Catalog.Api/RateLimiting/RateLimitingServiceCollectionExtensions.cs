@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Threading.RateLimiting;
 
+using LearnHub.Catalog.Api.Authentication;
+
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
@@ -30,9 +32,11 @@ public static class RateLimitingServiceCollectionExtensions
             {
                 var options = httpContext.RequestServices.GetRequiredService<IOptions<WriteRateLimitOptions>>().Value;
 
-                // One bucket per client IP. QueueLimit 0 rejects at once instead of holding the request open.
+                // One bucket per user, so one busy user cannot spend everyone's writes; the client IP (the forwarded one
+                // behind a trusted proxy) only for a request without a user. QueueLimit 0 rejects at once instead of
+                // holding the request open.
                 return RateLimitPartition.GetTokenBucketLimiter(
-                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    PartitionKey(httpContext),
                     _ => new TokenBucketRateLimiterOptions
                     {
                         TokenLimit = options.TokenLimit,
@@ -45,6 +49,11 @@ public static class RateLimitingServiceCollectionExtensions
 
         return services;
     }
+
+    private static string PartitionKey(HttpContext httpContext) =>
+        httpContext.User.TryGetUserId(out var userId)
+            ? $"user:{userId:N}"
+            : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
 
     // Same shape as every other error: a standard title and a stable 'code' extension clients can branch on.
     private static async ValueTask WriteRejectionAsync(OnRejectedContext context, CancellationToken cancellationToken)

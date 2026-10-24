@@ -6,8 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace LearnHub.Catalog.Api.Tests;
 
 /// <summary>
-/// The shared host for API tests. Every TestServer request has no remote IP, so all tests share one
-/// write rate-limit partition; the limit is raised far above what any test sends so they are never throttled.
+/// The shared host for API tests. Write buckets are per user and tests may reuse one, so the limit is raised far above
+/// what any test sends and they are never throttled.
 /// Rate-limit tests lower it again with <c>WithWebHostBuilder</c>.
 /// Tokens come from <see cref="TestTokens"/>: the issuer and audience are set through the same configuration a real
 /// environment uses, and only the signing key replaces the provider's discovery document.

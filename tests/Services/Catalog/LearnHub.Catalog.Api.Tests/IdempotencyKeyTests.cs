@@ -52,14 +52,44 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
         await AssertProblemAsync(second, HttpStatusCode.UnprocessableEntity, "catalog.idempotency_key.reused");
     }
 
+    // Keys are scoped to the user: another user's key must neither replay their response nor block the request.
+    [Fact]
+    public async Task The_same_key_and_body_from_another_user_creates_a_new_course_instead_of_replaying()
+    {
+        var key = NewKey();
+        var request = NewRequest();
+
+        var first = await PostAsync(factory.CreateAuthenticatedClient(Guid.NewGuid()), request, key);
+        var second = await PostAsync(factory.CreateAuthenticatedClient(Guid.NewGuid()), request, key);
+
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+        Assert.False(second.Headers.Contains("Idempotent-Replayed"));
+        Assert.NotEqual(first.Headers.Location, second.Headers.Location);
+    }
+
+    [Fact]
+    public async Task The_same_key_with_another_body_from_another_user_is_not_a_reuse()
+    {
+        var key = NewKey();
+
+        var first = await PostAsync(factory.CreateAuthenticatedClient(Guid.NewGuid()), NewRequest(), key);
+        var second = await PostAsync(factory.CreateAuthenticatedClient(Guid.NewGuid()), NewRequest(), key);
+
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+    }
+
     [Fact]
     public async Task A_key_still_in_flight_returns_409()
     {
-        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
+        var userId = Guid.NewGuid();
+        var client = factory.CreateAuthenticatedClient(userId);
         var key = NewKey();
         // Seeding the store directly makes the in-flight state deterministic, with no concurrent requests.
         var store = factory.Services.GetRequiredService<IIdempotencyStore>();
-        await store.TryBeginAsync(key, "another request", TestContext.Current.CancellationToken);
+        await store.TryBeginAsync(
+            IdempotencyKeys.ForUser(userId, key), "another request", TestContext.Current.CancellationToken);
 
         var response = await PostAsync(client, NewRequest(), key);
 
