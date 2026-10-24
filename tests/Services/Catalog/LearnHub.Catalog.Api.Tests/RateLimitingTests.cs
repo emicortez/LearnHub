@@ -48,6 +48,24 @@ public sealed class RateLimitingTests
         Assert.Equal("catalog.request.rate_limited", problem.GetProperty("code").GetString());
     }
 
+    // Every TestServer request has the same (empty) remote IP, so separate buckets here can only come from the user.
+    [Fact]
+    public async Task Each_user_gets_their_own_write_bucket()
+    {
+        await using var factory = new CatalogApiFactory();
+        var host = WithWriteLimit(factory, tokenLimit: 1);
+        var alice = host.CreateAuthenticatedClient(Guid.NewGuid());
+        var bob = host.CreateAuthenticatedClient(Guid.NewGuid());
+
+        var aliceFirst = await CreateCourseAsync(alice);
+        var bobFirst = await CreateCourseAsync(bob);
+        var aliceSecond = await CreateCourseAsync(alice);
+
+        Assert.Equal(HttpStatusCode.Created, aliceFirst.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, bobFirst.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, aliceSecond.StatusCode);
+    }
+
     [Fact]
     public async Task Reads_are_not_rate_limited()
     {

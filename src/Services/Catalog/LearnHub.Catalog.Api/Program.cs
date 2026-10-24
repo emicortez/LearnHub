@@ -41,11 +41,10 @@ app.UseStatusCodePages();
 // authorization is what rejects it (401 or 403) on endpoints that require a user.
 app.UseAuthentication();
 app.UseAuthorization();
-// Partitioned by client IP for now (the forwarded one behind a trusted proxy). After authentication, so it can
-// partition by user next.
+// After authentication, so write buckets are per user.
 app.UseRateLimiter();
-// After the rate limiter and before the endpoints. By default it skips requests with an Authorization header, so once
-// authentication lands (4b) authenticated reads bypass the cache unless a policy opts them in.
+// After the rate limiter and before the endpoints. By default it skips requests with an Authorization header, so only
+// anonymous reads are cached and one user's response is never served to another.
 app.UseOutputCache();
 
 // The document and its UI are for local development only; the frontend client is generated at build time.
