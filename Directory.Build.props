@@ -10,6 +10,19 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
+    <!-- Supply chain: restore audits every package, transitive ones included, against the GitHub Advisory Database.
+         With TreatWarningsAsErrors a moderate, high or critical advisory (NU1902-NU1904) fails the build; low ones are
+         left to Dependabot alerts. Never suppress an advisory to get a green build: upgrade, replace or remove the
+         package, or document a scoped exception. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>moderate</NuGetAuditLevel>
+
+    <!-- packages.lock.json records the whole resolved graph per project; CI restores with locked mode, so a resolution
+         change that was not committed fails instead of slipping in. After changing a package, run `dotnet restore`
+         and commit the updated lock files. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+
     <!-- Reproducible builds on CI. -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
