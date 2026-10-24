@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -29,6 +31,8 @@ public static class Extensions
         builder.AddDefaultHealthChecks();
 
         builder.AddDefaultForwardedHeaders();
+
+        builder.AddDefaultSecurityHeaders();
 
         builder.Services.AddServiceDiscovery();
 
@@ -130,6 +134,16 @@ public static class Extensions
                     options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
                 }
             });
+
+        return builder;
+    }
+
+    // Every response gets the browser security headers (see SecurityHeadersStartupFilter), and Kestrel stops sending
+    // "Server: Kestrel". Hiding the server is not a defense, only one less free hint.
+    public static TBuilder AddDefaultSecurityHeaders<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        builder.Services.AddSingleton<IStartupFilter, SecurityHeadersStartupFilter>();
+        builder.Services.Configure<KestrelServerOptions>(options => options.AddServerHeader = false);
 
         return builder;
     }
