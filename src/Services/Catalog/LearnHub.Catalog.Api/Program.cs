@@ -1,5 +1,6 @@
 using LearnHub.Catalog.Api.Authentication;
 using LearnHub.Catalog.Api.Caching;
+using LearnHub.Catalog.Api.Cors;
 using LearnHub.Catalog.Api.Courses;
 using LearnHub.Catalog.Api.Errors;
 using LearnHub.Catalog.Api.Idempotency;
@@ -19,6 +20,7 @@ builder.Services.AddValidation();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<UnhandledExceptionHandler>();
 
+builder.Services.AddCatalogCors(builder.Configuration);
 builder.Services.AddCatalogAuthentication();
 builder.Services.AddIdempotency();
 builder.Services.AddCatalogRateLimiting(builder.Configuration);
@@ -37,6 +39,9 @@ app.UseForwardedHeaders();
 app.UseExceptionHandler();
 // Gives empty error responses (such as an unmatched route's 404) a Problem Details body.
 app.UseStatusCodePages();
+// Before authentication, authorization and the rate limiter: it answers preflights before those gates run, and a 401,
+// 403 or 429 still carries the CORS headers an allowed page needs to read why it was rejected.
+app.UseCors(CatalogCorsServiceCollectionExtensions.FrontendPolicy);
 // Authentication only builds HttpContext.User from a valid token, leaving the request anonymous otherwise;
 // authorization is what rejects it (401 or 403) on endpoints that require a user.
 app.UseAuthentication();
