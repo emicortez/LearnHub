@@ -43,7 +43,7 @@ Tests run on **Microsoft.Testing.Platform** (`global.json` → `"test": { "runne
 
 ```
 src/AppHost/LearnHub.AppHost                 Aspire AppHost (Aspire.AppHost.Sdk)
-src/BuildingBlocks/LearnHub.ServiceDefaults  AddServiceDefaults() / MapDefaultEndpoints(): OpenTelemetry, health checks (/health, /alive), service discovery, HTTP resilience
+src/BuildingBlocks/LearnHub.ServiceDefaults  AddServiceDefaults() / MapDefaultEndpoints(): OpenTelemetry, health checks (/health, /alive), service discovery, HTTP resilience, forwarded headers, security headers
 src/BuildingBlocks/LearnHub.SharedKernel     Entity, AggregateRoot, ValueObject, Result, Error
 src/Services/Catalog/LearnHub.Catalog.Domain          Course aggregate, value objects, domain events
 src/Services/Catalog/LearnHub.Catalog.Application     Use-case handlers (plain classes until Wolverine), ICourseRepository
@@ -67,6 +67,8 @@ LearnHub.{Service}.Api/             # Minimal API endpoints, DI wiring, Program.
 **Authentication** is delegated to Microsoft Entra External ID (ADR 0009). Each API is a resource server: `AddJwtBearer` reads `Authentication:Schemes:Bearer` (Authority, ValidAudiences), accepts only RS256, and takes the user id from the `oid` claim (Entra's `sub` is pairwise per app). Writes require the `Instructor` policy (`Authentication/CatalogPolicies.cs`): a delegated token (with `scp`) carrying the `courses.write` scope and the `instructor` app role (`roles` claim). Ownership is a business rule checked in the use case (`PublishCourse.RequestedBy`), returning `Error.Forbidden` → 403. Reads are public. API tests never call the provider: `TestTokens` issues tokens signed with a test key, and `CatalogApiFactory` trusts that key.
 
 **Browser access** goes through a same-origin BFF (ADR 0010), so APIs never authenticate cookies and need no antiforgery. CORS is closed by default: `Cors:AllowedOrigins` lists exact origins only (validated at startup, never `*`), without credentials, and `UseCors` runs before authentication, authorization and rate limiting.
+
+**Security headers** come from `ServiceDefaults` (`SecurityHeadersStartupFilter`) on every response, errors included: `nosniff`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` (except `/scalar` in Development), `X-Frame-Options: DENY`, and `Cache-Control: no-store` when the request carries `Authorization` or the response is 401/403. Kestrel sends no `Server` header. HSTS (`max-age=31536000`) is sent by the app on https requests outside Development and loopback, since the Container Apps ingress cannot add headers; behind the ingress the forwarded headers restore https first. The obsolete `X-XSS-Protection` is never sent.
 
 Dependency rule: `Domain ← Application ← Infrastructure ← Api`. Services communicate through HTTP (sync) or Wolverine messaging (async), never through project references to another service (enforced by `ServiceIsolationTests`). MediatR, MassTransit and AutoMapper are not used (commercial licenses).
 

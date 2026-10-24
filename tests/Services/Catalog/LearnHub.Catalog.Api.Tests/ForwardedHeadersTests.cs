@@ -68,6 +68,22 @@ public sealed class ForwardedHeadersTests
         Assert.Equal(Uri.UriSchemeHttps, response.Headers.Location?.Scheme);
     }
 
+    [Fact]
+    public async Task Hsts_is_sent_for_the_original_https_request_behind_a_trusted_proxy()
+    {
+        await using var factory = new CatalogApiFactory();
+        var client = CreateHost(factory, TrustedProxy)
+            .WithWebHostBuilder(builder => builder.UseEnvironment("Production"))
+            .CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("http://catalog.learnhub.test") });
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/courses");
+        request.Headers.Add("X-Forwarded-For", "203.0.113.1");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["max-age=31536000"], response.Headers.GetValues("Strict-Transport-Security"));
+    }
+
     private static async Task<string> EchoAsync(CatalogApiFactory factory, IPAddress remoteIp, string forwardedFor)
     {
         var client = CreateHost(factory, remoteIp).CreateClient();
