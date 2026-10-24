@@ -44,6 +44,11 @@ public sealed class AuthorizationTests(CatalogApiFactory factory)
             // Client Credentials: the application's own token, with roles but no delegated scope.
             { "an app-only token", TestTokens.For(userId, scope: null) },
             { "a token without the write scope", TestTokens.For(userId, scope: "courses.read") },
+            // Scopes and roles match whole, exact values: look-alikes must not pass.
+            { "a scope that only starts with the write scope", TestTokens.For(userId, scope: "courses.writex") },
+            { "a scope that only ends with the write scope", TestTokens.For(userId, scope: "xcourses.write") },
+            { "comma-separated scopes", TestTokens.For(userId, scope: "courses.read,courses.write") },
+            { "the role in another case", TestTokens.For(userId, roles: ["Instructor"]) },
         };
     }
 

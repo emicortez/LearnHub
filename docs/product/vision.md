@@ -39,7 +39,7 @@ Users sign up and sign in with Google or with their own email and password. Both
 | A draft is visible only to its instructor and to admins; anyone else gets 404. Published courses are public | Decided, not built |
 | Editorial flow: the instructor submits a final version (`InReview`), an admin approves it or requests changes, and only after `Approved` does the instructor publish. Nothing is published while in review | Decided, not built |
 
-The rules that are not built yet arrive with the features that need them: lessons, then review and moderation. Today a course goes straight from draft to published.
+The rules that are not built yet arrive with the features that need them: lessons, then review and moderation. Today publishing goes straight from draft to published, and it needs lessons, which cannot be added yet.
 
 ## Key capabilities
 
