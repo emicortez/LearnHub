@@ -69,6 +69,7 @@ nunit-*.xml
 # Personal study material (never part of the LearnHub product)
 # ------------------------------------------------------------
 tutoriales/
+book/
 best-practices/
 docs/lecciones/
 docs/weekly/
