@@ -151,6 +151,7 @@ public sealed class SecurityHeadersTests(CatalogApiFactory factory)
     [InlineData("Development", "https://catalog.learnhub.test")]
     [InlineData("Production", "https://localhost")]
     [InlineData("Production", "https://127.0.0.1")]
+    [InlineData("Production", "https://app.localhost")]
     // Browsers ignore HSTS received over http, and an attacker in the middle could strip it anyway.
     [InlineData("Production", "http://catalog.learnhub.test")]
     public async Task No_hsts_in_development_on_loopback_or_over_http(string environment, string baseAddress)

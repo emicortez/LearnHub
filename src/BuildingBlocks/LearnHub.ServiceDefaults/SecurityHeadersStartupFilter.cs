@@ -76,5 +76,7 @@ internal sealed class SecurityHeadersStartupFilter(IWebHostEnvironment environme
 
     private static bool IsLoopback(HostString host) =>
         string.Equals(host.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+        // Browsers resolve every *.localhost name to loopback too.
+        || host.Host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase)
         || (System.Net.IPAddress.TryParse(host.Host, out var address) && System.Net.IPAddress.IsLoopback(address));
 }
