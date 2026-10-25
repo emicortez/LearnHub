@@ -106,6 +106,6 @@ These invariants apply once domain projects exist — do not break them:
 - Trunk-based: short branches from `main`, Conventional Commits, squash merge after green CI. See `CONTRIBUTING.md`.
 - Test-first for behavior changes.
 - `docs/product/vision.md` is the product north star: learning by doing comes first; build features when the curriculum reaches them.
-- Architecture docs live in `docs/architecture/` (quality attributes, context map, C4). Read the ADRs in `docs/architecture/adr/` before changing a recorded decision; record new significant decisions as a new ADR, and supersede rather than edit accepted ones.
+- Architecture docs live in `docs/architecture/` (quality attributes, context map, C4, data model). Read the ADRs in `docs/architecture/adr/` before changing a recorded decision; record new significant decisions as a new ADR, and supersede rather than edit accepted ones.
 - Generated artifacts (code, comments, docs, commits, PRs) are in English.
 - `tutoriales/`, `odd/` and other personal material are gitignored and must never be committed.
