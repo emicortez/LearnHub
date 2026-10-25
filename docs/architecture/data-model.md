@@ -51,6 +51,19 @@ Both tables are in BCNF: every determinant is a candidate key.
 | Instructor name, email | Owned by the identity provider ([ADR 0009](adr/0009-delegated-authentication-with-entra-external-id.md)). A copy would go stale when the instructor changes it. | Entra External ID, keyed by `instructor_id` (the `oid` claim) |
 | Lessons as a `jsonb` column | Lessons have identity, ordering and invariants that need a foreign key, `UNIQUE` and `CHECK` constraints, and they are queried on their own. | `lessons` table |
 
+### Read queries
+
+The derived data is computed at read time by versioned SQL in [`Persistence/Queries/`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Queries/), tested in `CatalogQueriesTests`:
+
+| Query | Returns | Order |
+|---|---|---|
+| `list_published_courses.sql` | Published courses with `lesson_count` and `total_duration_seconds` | `title`, then `slug` |
+| `list_instructor_courses.sql` | One instructor's courses in every status, with the same totals | `title`, then `slug` |
+
+- A course without lessons is kept by the `LEFT JOIN` and gets `0` lessons and `0` seconds: `count(l.id)` ignores the missing lesson where `count(*)` would count the course row, and `coalesce` turns the `NULL` of an empty `sum` into `0`.
+- Both totals are `bigint`.
+- `title` is not unique, so `slug` breaks ties; without it, rows with the same title have no defined order.
+
 ### Denormalization rule
 
 Catalog stores no duplicated or precomputed data. Before any is added:

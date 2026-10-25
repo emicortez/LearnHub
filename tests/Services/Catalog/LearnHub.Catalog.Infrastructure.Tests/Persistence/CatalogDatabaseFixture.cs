@@ -25,13 +25,35 @@ public sealed class CatalogDatabaseFixture : IAsyncLifetime
     {
         await _container.StartAsync();
         _dataSource = NpgsqlDataSource.Create(_container.GetConnectionString());
+        await ApplySchemaAsync(_dataSource);
+    }
 
+    /// <summary>
+    /// Creates a new database with the schema applied and no rows, for tests that read whole tables
+    /// and must not see rows other tests inserted into the shared database. The caller disposes it.
+    /// </summary>
+    public async Task<NpgsqlDataSource> CreateEmptyDatabaseAsync()
+    {
+        var name = $"catalog_{Guid.CreateVersion7():N}";
+        await using (var create = DataSource.CreateCommand($"CREATE DATABASE {name}"))
+        {
+            await create.ExecuteNonQueryAsync();
+        }
+
+        var connectionString = new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Database = name };
+        var dataSource = NpgsqlDataSource.Create(connectionString.ConnectionString);
+        await ApplySchemaAsync(dataSource);
+        return dataSource;
+    }
+
+    private static async Task ApplySchemaAsync(NpgsqlDataSource dataSource)
+    {
         var scripts = Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Schema"), "*.sql")
             .Order(StringComparer.Ordinal);
 
         foreach (var script in scripts)
         {
-            await using var command = _dataSource.CreateCommand(await File.ReadAllTextAsync(script));
+            await using var command = dataSource.CreateCommand(await File.ReadAllTextAsync(script));
             await command.ExecuteNonQueryAsync();
         }
     }

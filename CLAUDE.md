@@ -57,10 +57,10 @@ src/BuildingBlocks/LearnHub.ServiceDefaults  AddServiceDefaults() / MapDefaultEn
 src/BuildingBlocks/LearnHub.SharedKernel     Entity, AggregateRoot, ValueObject, Result, Error
 src/Services/Catalog/LearnHub.Catalog.Domain          Course aggregate, value objects, domain events
 src/Services/Catalog/LearnHub.Catalog.Application     Use-case handlers (plain classes until Wolverine), ICourseRepository
-src/Services/Catalog/LearnHub.Catalog.Infrastructure  In-memory repository (replaced by EF Core in module 6); PostgreSQL schema in Persistence/Schema/*.sql
+src/Services/Catalog/LearnHub.Catalog.Infrastructure  In-memory repository (replaced by EF Core in module 6); PostgreSQL schema in Persistence/Schema/*.sql, read queries in Persistence/Queries/*.sql
 src/Services/Catalog/LearnHub.Catalog.Api             Minimal API endpoints by feature (Courses/CourseEndpoints.cs)
 tests/Services/Catalog/LearnHub.Catalog.Api.Tests     WebApplicationFactory integration tests
-tests/Services/Catalog/LearnHub.Catalog.Infrastructure.Tests  Schema tests against a real PostgreSQL container (Testcontainers)
+tests/Services/Catalog/LearnHub.Catalog.Infrastructure.Tests  Schema and query tests against a real PostgreSQL container (Testcontainers)
 tests/LearnHub.Architecture.Tests                     Dependency, encapsulation, layer and service-isolation rules
 ```
 
@@ -80,6 +80,7 @@ LearnHub.{Service}.Api/             # Minimal API endpoints, DI wiring, Program.
 - money is unconstrained `numeric` with explicit range and scale checks, because `numeric(12, 2)` silently rounds extra decimals;
 - `lessons.course_id` cascades on delete (lessons belong to the aggregate);
 - no foreign key ever crosses services or points at the identity provider (`instructor_id` is the Entra `oid`).
+- the read queries in `Persistence/Queries/` (public listing, instructor's courses) are the results the EF Core repository must reproduce: a course without lessons has 0 lessons and 0 seconds (`LEFT JOIN`, `count(l.id)`, `coalesce(sum(...), 0)`), totals are `bigint`, and order is by title then the unique slug. Their tests run on a database of their own (`CreateEmptyDatabaseAsync`), since they read whole tables.
 The schema tests use the same image as the AppHost; keep them in sync.
 
 **Authentication** is delegated to Microsoft Entra External ID (ADR 0009). Each API is a resource server: `AddJwtBearer` reads `Authentication:Schemes:Bearer` (Authority, ValidAudiences), accepts only RS256, and takes the user id from the `oid` claim (Entra's `sub` is pairwise per app). Writes require the `Instructor` policy (`Authentication/CatalogPolicies.cs`): a delegated token (with `scp`) carrying the `courses.write` scope and the `instructor` app role (`roles` claim). Ownership is a business rule checked in the use case (`PublishCourse.RequestedBy`), returning `Error.Forbidden` → 403. Reads are public. API tests never call the provider: `TestTokens` issues tokens signed with a test key, and `CatalogApiFactory` trusts that key.
