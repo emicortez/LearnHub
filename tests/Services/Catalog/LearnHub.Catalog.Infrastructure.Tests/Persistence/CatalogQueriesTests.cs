@@ -150,7 +150,7 @@ public sealed class CatalogQueriesTests(CatalogDatabaseFixture database) : IAsyn
 
     private async Task<string[]> TotalsColumnTypesAsync(string file)
     {
-        await using var command = _db.CreateCommand(await ReadQueryAsync(file));
+        await using var command = _db.CreateCommand(await CatalogQueryFiles.ReadAsync(file));
         await using var row = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
         return
         [
@@ -159,12 +159,9 @@ public sealed class CatalogQueriesTests(CatalogDatabaseFixture database) : IAsyn
         ];
     }
 
-    private static Task<string> ReadQueryAsync(string file) =>
-        File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Queries", file), TestContext.Current.CancellationToken);
-
     private async Task<List<CourseSummary>> QueryAsync(string file, Guid? parameter, bool hasStatus)
     {
-        await using var command = _db.CreateCommand(await ReadQueryAsync(file));
+        await using var command = _db.CreateCommand(await CatalogQueryFiles.ReadAsync(file));
         if (parameter is { } value)
         {
             command.Parameters.AddWithValue(value);
