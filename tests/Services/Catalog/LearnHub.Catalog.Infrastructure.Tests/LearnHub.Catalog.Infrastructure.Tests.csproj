@@ -21,6 +21,9 @@
     <None Include="..\..\..\..\src\Services\Catalog\LearnHub.Catalog.Infrastructure\Persistence\Schema\*.sql"
           LinkBase="Schema"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\..\src\Services\Catalog\LearnHub.Catalog.Infrastructure\Persistence\Queries\*.sql"
+          LinkBase="Queries"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
