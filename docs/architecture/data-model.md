@@ -53,16 +53,19 @@ Both tables are in BCNF: every determinant is a candidate key.
 
 ### Read queries
 
-The derived data is computed at read time by versioned SQL in [`Persistence/Queries/`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Queries/), tested in `CatalogQueriesTests`:
+The derived data is computed at read time by versioned SQL in [`Persistence/Queries/`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Queries/), tested in `CatalogQueriesTests` and `CatalogWindowQueriesTests`:
 
 | Query | Returns | Order |
 |---|---|---|
 | `list_published_courses.sql` | Published courses with `lesson_count` and `total_duration_seconds` | `title`, then `slug` |
 | `list_instructor_courses.sql` | One instructor's courses in every status, with the same totals | `title`, then `slug` |
+| `get_published_course_outline.sql` | One published course's lessons with `start_offset_seconds`, `percentage_of_course` (one decimal) and the course total; empty for a draft, archived or unknown course | `position` |
+| `list_longest_published_courses_per_instructor.sql` | Up to three published courses per instructor by total duration, with their `rank` | `instructor_id`, then `rank` (ties broken by `slug`) |
 
 - A course without lessons is kept by the `LEFT JOIN` and gets `0` lessons and `0` seconds: `count(l.id)` ignores the missing lesson where `count(*)` would count the course row, and `coalesce` turns the `NULL` of an empty `sum` into `0`.
 - Both totals are `bigint`.
 - `title` is not unique, so `slug` breaks ties; without it, rows with the same title have no defined order.
+- The outline and the ranking use window functions, which keep one row per lesson or course. The percentage is computed as `numeric` (integer division would truncate) and rounded half away from zero by PostgreSQL's `round`, which differs from .NET's default `Math.Round` (half to even).
 
 ### Denormalization rule
 
