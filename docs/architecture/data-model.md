@@ -53,11 +53,12 @@ Both tables are in BCNF: every determinant is a candidate key.
 
 ### Read queries
 
-The derived data is computed at read time by versioned SQL in [`Persistence/Queries/`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Queries/), tested in `CatalogQueriesTests` and `CatalogWindowQueriesTests`:
+The derived data is computed at read time by versioned SQL in [`Persistence/Queries/`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Queries/), tested in `CatalogQueriesTests`, `CatalogWindowQueriesTests` and `CatalogPaginationQueriesTests`:
 
 | Query | Returns | Order |
 |---|---|---|
 | `list_published_courses.sql` | Published courses with `lesson_count` and `total_duration_seconds` | `title`, then `slug` |
+| `list_published_courses_first_page.sql`, `list_published_courses_next_page.sql` | The same rows one page at a time (keyset pagination): the next page starts after the previous page's last `(title, slug)` | `title`, then `slug` |
 | `list_instructor_courses.sql` | One instructor's courses in every status, with the same totals | `title`, then `slug` |
 | `get_published_course_outline.sql` | One published course's lessons with `start_offset_seconds`, `percentage_of_course` (one decimal) and the course total; empty for a draft, archived or unknown course | `position` |
 | `list_longest_published_courses_per_instructor.sql` | Up to three published courses per instructor by total duration, with their `rank` | `instructor_id`, then `rank` (ties broken by `slug`) |
@@ -66,6 +67,25 @@ The derived data is computed at read time by versioned SQL in [`Persistence/Quer
 - Both totals are `bigint`.
 - `title` is not unique, so `slug` breaks ties; without it, rows with the same title have no defined order.
 - The outline and the ranking use window functions, which keep one row per lesson or course. The percentage is computed as `numeric` (integer division would truncate) and rounded half away from zero by PostgreSQL's `round`, which differs from .NET's default `Math.Round` (half to even).
+
+### Indexes
+
+Every index is justified by a query. The constraints in `001` create four; [`Schema/002`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Schema/002_create_query_indexes.sql) adds two. `CatalogIndexesTests` pins the exact set.
+
+| Index | Key | Serves |
+|---|---|---|
+| `pk_courses` | `courses (id)` | Lookup by id, the outline's join to its course |
+| `uq_courses_slug` | `courses (slug)` | Lookup by slug |
+| `pk_lessons` | `lessons (id)` | Lookup by id |
+| `uq_lessons_course_position` | `lessons (course_id, position)` | `fk_lessons_course` and its cascade, the outline, the lesson joins |
+| `ix_courses_published_title_slug` | `courses (title, slug) WHERE status = 'published'` | The public listing and its pages |
+| `ix_courses_instructor_title_slug` | `courses (instructor_id, title, slug)` | The instructor's courses |
+
+- PostgreSQL does not index a foreign key column by itself. `lessons.course_id` needs no index of its own because `uq_lessons_course_position` starts with it.
+- The partial index is usable only by queries that repeat `status = 'published'` as a literal.
+- Pages use keyset pagination, not `OFFSET`: the cursor is the whole sort key `(title, slug)`, since a title alone would skip courses sharing the last row's title. The page of courses is chosen before its lessons are aggregated.
+- Not created: an index on `status` alone (three values), a separate one on `lessons (course_id)`, duplicates of the constraint indexes, and `lower(slug)` (slugs are case-sensitive today).
+- Whether the planner uses these indexes is measured with `EXPLAIN`, not assumed. In production, a plain `CREATE INDEX` blocks writes to the table while it builds.
 
 ### Denormalization rule
 
