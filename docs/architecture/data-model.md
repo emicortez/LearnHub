@@ -85,7 +85,14 @@ Every index is justified by a query. The constraints in `001` create four; [`Sch
 - The partial index is usable only by queries that repeat `status = 'published'` as a literal.
 - Pages use keyset pagination, not `OFFSET`: the cursor is the whole sort key `(title, slug)`, since a title alone would skip courses sharing the last row's title. The page of courses is chosen before its lessons are aggregated.
 - Not created: an index on `status` alone (three values), a separate one on `lessons (course_id)`, duplicates of the constraint indexes, and `lower(slug)` (slugs are case-sensitive today).
-- Whether the planner uses these indexes is measured with `EXPLAIN`, not assumed. In production, a plain `CREATE INDEX` blocks writes to the table while it builds.
+- Whether the planner uses them is measured, not assumed. `CatalogQueryPlansTests` loads 100,000 courses (10% published) with five lessons each, runs `ANALYZE`, and reads `EXPLAIN (FORMAT JSON)` of each query. It checks the index and the condition that bounds it, never the whole plan shape:
+  - the first page cuts a `Limit` over `ix_courses_published_title_slug` before looking up lessons;
+  - the next page bounds that index with `ROW(title, slug) > ROW($1, $2)`, also in a generic plan, because `status = 'published'` is a literal;
+  - the instructor listing is bounded by `ix_courses_instructor_title_slug`;
+  - the outline goes through `pk_courses` and `uq_lessons_course_position`.
+- Measured on that data (`EXPLAIN (ANALYZE, BUFFERS)`, PostgreSQL 18.3), a 20-course page read 115 buffers, while the unpaginated listing with `LIMIT 20 OFFSET 5000` read 6,093: it aggregates every published course before cutting.
+- With a few rows a sequential scan is the cheapest plan, so plans are only read on a loaded database.
+- In production, a plain `CREATE INDEX` blocks writes to the table while it builds.
 
 ### Denormalization rule
 
