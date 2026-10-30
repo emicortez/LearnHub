@@ -94,6 +94,27 @@ Every index is justified by a query. The constraints in `001` create four; [`Sch
 - With a few rows a sequential scan is the cheapest plan, so plans are only read on a loaded database.
 - In production, a plain `CREATE INDEX` blocks writes to the table while it builds.
 
+### Transactions and concurrency
+
+Catalog has no SQL writes yet (the repository arrives in module 6), so this is the contract that repository must keep. One aggregate is saved in one transaction, at PostgreSQL's default `READ COMMITTED`; the isolation level is raised only for a rule that needs it. Transactions stay short: no HTTP call and no user wait inside one. They never cross services (ADR 0002).
+
+| Operation | Risk | Protection |
+|---|---|---|
+| `Course.AddLesson` | Two requests compute the same next position | `uq_lessons_course_position`: the second insert waits for the first and fails with `23505` when it commits; report a conflict or recompute |
+| `Course.ChangePrice` | Lost update: the new price is an absolute value, so `price = price + n` does not apply | Optimistic version check, added with the module 4 ETag |
+| `Course.Publish`, `Course.Archive` | The decision is taken on a loaded aggregate that may be stale | Same version check |
+| A rule across rows (none today, for example a maximum of drafts per instructor) | Write skew: no single row to lock and no constraint can express it | `SERIALIZABLE`, retrying the whole transaction on `40001` |
+
+`CatalogConcurrencyTests` pins this behavior with two real connections on PostgreSQL 18.3:
+
+- `READ COMMITTED` loses the first update of a read, calculate and write, without any error.
+- `SET price_amount = price_amount + n` and `SELECT ... FOR UPDATE` keep both changes: the second session waits and works on the first one's committed value.
+- `REPEATABLE READ` rejects the second writer with `40001`. Its snapshot is taken at the first statement, not at `BEGIN`.
+- Write skew passes `REPEATABLE READ` and `SERIALIZABLE` rejects it. The retry starts over and counts again, because retrying only the last statement would reuse a stale decision.
+- Readers never wait for writers: they see the last committed row version until the writer commits.
+
+An isolation level above `READ COMMITTED` is only safe with a retry: without one, it turns a silent bug into an error for the user. The read and the write must also share the transaction, since a read in its own transaction has a snapshot of its own.
+
 ### Denormalization rule
 
 Catalog stores no duplicated or precomputed data. Before any is added:
