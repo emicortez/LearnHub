@@ -7,9 +7,13 @@ var postgres = builder.AddPostgres("postgres")
 
 var catalogDb = postgres.AddDatabase("catalog");
 
+var catalogMigrations = builder.AddProject<Projects.LearnHub_Catalog_MigrationService>("catalog-migrations")
+    .WithReference(catalogDb)
+    .WaitFor(catalogDb);
+
 builder.AddProject<Projects.LearnHub_Catalog_Api>("catalog-api")
     .WithReference(catalogDb)
-    .WaitFor(catalogDb)
+    .WaitForCompletion(catalogMigrations)
     .WithHttpHealthCheck("/health");
 
 builder.Build().Run();

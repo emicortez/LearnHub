@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- One-shot job that applies the Catalog migrations before the Api starts. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\LearnHub.ServiceDefaults\LearnHub.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\LearnHub.Catalog.Infrastructure\LearnHub.Catalog.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

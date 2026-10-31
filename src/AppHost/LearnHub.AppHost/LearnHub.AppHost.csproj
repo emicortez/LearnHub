@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Services\Catalog\LearnHub.Catalog.Api\LearnHub.Catalog.Api.csproj" />
+    <ProjectReference Include="..\..\Services\Catalog\LearnHub.Catalog.MigrationService\LearnHub.Catalog.MigrationService.csproj" />
   </ItemGroup>
 
 </Project>

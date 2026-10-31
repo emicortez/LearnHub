@@ -14,9 +14,15 @@ internal sealed class LessonConfiguration : IEntityTypeConfiguration<Lesson>
 
     public void Configure(EntityTypeBuilder<Lesson> builder)
     {
-        builder.ToTable("lessons");
+        builder.ToTable("lessons", table =>
+        {
+            table.HasCheckConstraint("ck_lessons_title_not_blank", "title ~ '[^[:space:]]'");
+            table.HasCheckConstraint("ck_lessons_duration_positive", "duration_seconds > 0");
+            table.HasCheckConstraint("ck_lessons_position_positive", "position > 0");
+        });
 
-        builder.HasKey(lesson => lesson.Id);
+        builder.HasKey(lesson => lesson.Id)
+            .HasName("pk_lessons");
 
         // The domain creates its ids. With a generated key, a new lesson added to a loaded course would count as an
         // existing row, and EF Core would send an UPDATE instead of an INSERT.
@@ -37,6 +43,13 @@ internal sealed class LessonConfiguration : IEntityTypeConfiguration<Lesson>
 
         builder.Property<int>(Position)
             .HasColumnName("position");
+
+        // Tables have no order, so the aggregate's list order is stored. The migration creates this as a UNIQUE
+        // constraint: an alternate key would reject two new lessons in the tracker, before they get their position.
+        // It starts with course_id, so it also serves fk_lessons_course, which PostgreSQL does not index by itself.
+        builder.HasIndex(CourseId, Position)
+            .IsUnique()
+            .HasDatabaseName("uq_lessons_course_position");
     }
 
     private sealed class DurationConverter()

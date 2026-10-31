@@ -1,3 +1,7 @@
+using LearnHub.Catalog.Infrastructure.Persistence;
+
+using Microsoft.EntityFrameworkCore;
+
 using Npgsql;
 
 using Testcontainers.PostgreSql;
@@ -7,7 +11,7 @@ using Testcontainers.PostgreSql;
 namespace LearnHub.Catalog.Infrastructure.Tests.Persistence;
 
 /// <summary>
-/// One real PostgreSQL container for the whole test run, with every Catalog schema script applied in order.
+/// One real PostgreSQL container for the whole test run, with the Catalog migrations applied.
 /// Uses the same image the Aspire AppHost runs, so the tests prove the engine the app talks to.
 /// </summary>
 public sealed class CatalogDatabaseFixture : IAsyncLifetime
@@ -25,7 +29,7 @@ public sealed class CatalogDatabaseFixture : IAsyncLifetime
     {
         await _container.StartAsync();
         _dataSource = NpgsqlDataSource.Create(_container.GetConnectionString());
-        await ApplySchemaAsync(_dataSource);
+        await MigrateAsync(_dataSource);
     }
 
     /// <summary>
@@ -42,20 +46,18 @@ public sealed class CatalogDatabaseFixture : IAsyncLifetime
 
         var connectionString = new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Database = name };
         var dataSource = NpgsqlDataSource.Create(connectionString.ConnectionString);
-        await ApplySchemaAsync(dataSource);
+        await MigrateAsync(dataSource);
         return dataSource;
     }
 
-    private static async Task ApplySchemaAsync(NpgsqlDataSource dataSource)
+    private static async Task MigrateAsync(NpgsqlDataSource dataSource)
     {
-        var scripts = Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Schema"), "*.sql")
-            .Order(StringComparer.Ordinal);
+        await using var context = new CatalogDbContext(
+            new DbContextOptionsBuilder<CatalogDbContext>()
+                .UseNpgsql(dataSource)
+                .Options);
 
-        foreach (var script in scripts)
-        {
-            await using var command = dataSource.CreateCommand(await File.ReadAllTextAsync(script));
-            await command.ExecuteNonQueryAsync();
-        }
+        await context.Database.MigrateAsync();
     }
 
     public async ValueTask DisposeAsync()

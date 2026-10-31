@@ -4,7 +4,7 @@ Each service owns its database on one shared PostgreSQL server ([ADR 0002](adr/0
 
 ## Catalog
 
-Schema: [`001_create_courses_and_lessons.sql`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Schema/001_create_courses_and_lessons.sql), with its constraints tested against a real server in `LearnHub.Catalog.Infrastructure.Tests`.
+Schema: the [EF Core migrations](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Migrations/), with its constraints tested against a real server in `LearnHub.Catalog.Infrastructure.Tests`.
 
 The `Course` aggregate spans two tables: a course owns its lessons, and lessons have no life outside it.
 
@@ -70,7 +70,7 @@ The derived data is computed at read time by versioned SQL in [`Persistence/Quer
 
 ### Indexes
 
-Every index is justified by a query. The constraints in `001` create four; [`Schema/002`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Schema/002_create_query_indexes.sql) adds two. `CatalogIndexesTests` pins the exact set.
+Every index is justified by a query. The primary keys and `UNIQUE` constraints create four, and the [configurations](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/CourseConfiguration.cs) add two. `CatalogIndexesTests` pins the exact set.
 
 | Index | Key | Serves |
 |---|---|---|
@@ -136,6 +136,15 @@ An isolation level above `READ COMMITTED` is only safe with a retry: without one
 - `CatalogDbContext` numbers new lessons when saving: each goes after the highest position loaded, and stored lessons keep theirs. `AutoInclude` therefore has to load the whole aggregate, or a new lesson would reuse a position and fail on `uq_lessons_course_position`.
 - `AutoInclude` cannot sort, so any read that needs the order of `Lessons` uses `CoursesWithOrderedLessons`.
 - `CatalogDbContextTests` pins the behavior: a loaded course needs no `Update` call, the save writes only the changed column, and `Update` on it writes every column and its lessons too. Two queries for one row reach the database twice and return one instance.
+
+### Migrations
+
+The `InitialCatalog` migration replaced the hand-written SQL scripts. Before they were deleted, `pg_dump --schema-only` gave identical output for a database built from the scripts and one built from the migration.
+
+- EF Core compares the model with its snapshot, never with a database. Generated migrations are therefore reviewed, and `CatalogMigrationsTests` fails when the model changes without one.
+- `uq_courses_slug` and `uq_lessons_course_position` are `UNIQUE` constraints written by hand in the migration. The model maps them as unique indexes: an alternate key would need the position before saving, and `CatalogDbContext` assigns it while saving. A later migration that changes them must also be written by hand.
+- In development, `LearnHub.Catalog.MigrationService` runs once and exits, and `catalog-api` waits for it. A separate step means the Api never needs permission to change the schema, and a failed migration keeps it from starting on an old schema.
+- Production is not deployed yet. The plan is a migration bundle as a one-shot deployment job, with its own database identity. An index on a loaded table needs `CREATE INDEX CONCURRENTLY` through `migrationBuilder.Sql(..., suppressTransaction: true)`.
 
 ### Denormalization rule
 
