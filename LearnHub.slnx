@@ -10,6 +10,7 @@
     <Project Path="src/Services/Catalog/LearnHub.Catalog.Application/LearnHub.Catalog.Application.csproj" />
     <Project Path="src/Services/Catalog/LearnHub.Catalog.Domain/LearnHub.Catalog.Domain.csproj" />
     <Project Path="src/Services/Catalog/LearnHub.Catalog.Infrastructure/LearnHub.Catalog.Infrastructure.csproj" />
+    <Project Path="src/Services/Catalog/LearnHub.Catalog.MigrationService/LearnHub.Catalog.MigrationService.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BuildingBlocks/LearnHub.SharedKernel.Tests/LearnHub.SharedKernel.Tests.csproj" />

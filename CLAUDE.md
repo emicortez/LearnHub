@@ -22,6 +22,9 @@ dotnet test --solution LearnHub.slnx --configuration Release --no-build
 # Fix formatting
 dotnet format LearnHub.slnx
 
+# Add a Catalog migration (dotnet-ef is pinned in .config/dotnet-tools.json; run `dotnet tool restore` first)
+dotnet ef migrations add <Name> --project src/Services/Catalog/LearnHub.Catalog.Infrastructure --output-dir Persistence/Migrations
+
 # Run a subset of tests (Microsoft.Testing.Platform / xUnit v3 filters)
 dotnet test --solution LearnHub.slnx --filter-class "*HealthEndpointsTests"
 ```
@@ -57,7 +60,8 @@ src/BuildingBlocks/LearnHub.ServiceDefaults  AddServiceDefaults() / MapDefaultEn
 src/BuildingBlocks/LearnHub.SharedKernel     Entity, AggregateRoot, ValueObject, Result, Error
 src/Services/Catalog/LearnHub.Catalog.Domain          Course aggregate, value objects, domain events
 src/Services/Catalog/LearnHub.Catalog.Application     Use-case handlers (plain classes until Wolverine), ICourseRepository
-src/Services/Catalog/LearnHub.Catalog.Infrastructure  In-memory repository (replaced by EF Core in module 6); PostgreSQL schema in Persistence/Schema/*.sql, read queries in Persistence/Queries/*.sql
+src/Services/Catalog/LearnHub.Catalog.Infrastructure  In-memory repository (replaced by EF Core in module 6); EF Core model and migrations in Persistence/, read queries in Persistence/Queries/*.sql
+src/Services/Catalog/LearnHub.Catalog.MigrationService  One-shot job that applies the migrations; the Api waits for it to finish
 src/Services/Catalog/LearnHub.Catalog.Api             Minimal API endpoints by feature (Courses/CourseEndpoints.cs)
 tests/Services/Catalog/LearnHub.Catalog.Api.Tests     WebApplicationFactory integration tests
 tests/Services/Catalog/LearnHub.Catalog.Infrastructure.Tests  Schema and query tests against a real PostgreSQL container (Testcontainers)
@@ -75,15 +79,15 @@ LearnHub.{Service}.Infrastructure/  # EF Core, repositories, external service im
 LearnHub.{Service}.Api/             # Minimal API endpoints, DI wiring, Program.cs
 ```
 
-**Persistence**: the AppHost runs one PostgreSQL server (`postgres`, image `postgres:18.3`, data volume) with one database per service (ADR 0002); Catalog's is `catalog`, passed to `catalog-api` as `ConnectionStrings:catalog`. Catalog's schema is versioned SQL in `LearnHub.Catalog.Infrastructure/Persistence/Schema/` (applied by the schema tests; EF Core migrations take over in module 6 and must reproduce it):
+**Persistence**: the AppHost runs one PostgreSQL server (`postgres`, image `postgres:18.3`, data volume) with one database per service (ADR 0002); Catalog's is `catalog`, passed to `catalog-api` as `ConnectionStrings:catalog`. Catalog's schema is the EF Core model plus the reviewed migrations in `LearnHub.Catalog.Infrastructure/Persistence/Migrations/`. Read every generated migration: EF does not infer checks or partial indexes (they are declared in the configurations), and `UNIQUE` constraints are written by hand in the migration. The schema tests run on a migrated database, and `CatalogMigrationsTests` fails if the model changes without a migration:
 - every constraint is named (`pk_`, `uq_`, `fk_`, `ck_`), so a violation reports which rule failed through its SQLSTATE (`23505`, `23514`, `23503`) and constraint name;
 - money is unconstrained `numeric` with explicit range and scale checks, because `numeric(12, 2)` silently rounds extra decimals;
 - `lessons.course_id` cascades on delete (lessons belong to the aggregate);
 - no foreign key ever crosses services or points at the identity provider (`instructor_id` is the Entra `oid`).
 - the read queries in `Persistence/Queries/` (public listing, instructor's courses, published course outline, longest courses per instructor) are the results the EF Core repository must reproduce: a course without lessons has 0 lessons and 0 seconds (`LEFT JOIN`, `count(l.id)`, `coalesce(sum(...), 0)`), totals are `bigint`, and order is by title then the unique slug. Their tests run on a database of their own (`CreateEmptyDatabaseAsync`), since they read whole tables.
-- indexes are justified by a named query (`Schema/002`, pinned by `CatalogIndexesTests`); the FK `lessons.course_id` is covered by `uq_lessons_course_position`. The public listing pages by keyset on `(title, slug)` (`list_published_courses_first_page.sql` / `_next_page.sql`), never `OFFSET`. `CatalogQueryPlansTests` reads `EXPLAIN (FORMAT JSON)` on a loaded database (100,000 courses, `ANALYZE`) and checks the index and its bounding condition per query; if one fails, fix the index or query, not the test.
+- indexes are justified by a named query (see the configurations, pinned by `CatalogIndexesTests`); the FK `lessons.course_id` is covered by `uq_lessons_course_position`. The public listing pages by keyset on `(title, slug)` (`list_published_courses_first_page.sql` / `_next_page.sql`), never `OFFSET`. `CatalogQueryPlansTests` reads `EXPLAIN (FORMAT JSON)` on a loaded database (100,000 courses, `ANALYZE`) and checks the index and its bounding condition per query; if one fails, fix the index or query, not the test.
 - one aggregate is saved in one short transaction at `READ COMMITTED`; `docs/architecture/data-model.md` lists the protection of each write operation. A level above that requires retrying the whole transaction on `40001`. `CatalogConcurrencyTests` interleaves two real connections step by step and proves a wait with `pg_blocking_pids`, never with a delay.
-- `Persistence/CatalogDbContext.cs` maps `Course` onto that schema (`CatalogDbContextTests`). The API still uses the in-memory repository until lesson 6.4. `course_id` and `position` are shadow properties: `CatalogDbContext` numbers new lessons when saving, and `AutoInclude` loads the lessons but cannot sort them, so a read that needs their order uses `CoursesWithOrderedLessons`. EF adapts to the schema, never the reverse: value objects go through converters and complex properties, with no public setters in the domain.
+- `Persistence/CatalogDbContext.cs` maps the `Course` aggregate (`CatalogDbContextTests`). The API still uses the in-memory repository until lesson 6.4. `course_id` and `position` are shadow properties: `CatalogDbContext` numbers new lessons when saving, and `AutoInclude` loads the lessons but cannot sort them, so a read that needs their order uses `CoursesWithOrderedLessons`. The domain stays free of EF: value objects go through converters and complex properties, with no public setters.
 The schema tests use the same image as the AppHost; keep them in sync.
 
 **Authentication** is delegated to Microsoft Entra External ID (ADR 0009). Each API is a resource server: `AddJwtBearer` reads `Authentication:Schemes:Bearer` (Authority, ValidAudiences), accepts only RS256, and takes the user id from the `oid` claim (Entra's `sub` is pairwise per app). Writes require the `Instructor` policy (`Authentication/CatalogPolicies.cs`): a delegated token (with `scp`) carrying the `courses.write` scope and the `instructor` app role (`roles` claim). Ownership is a business rule checked in the use case (`PublishCourse.RequestedBy`), returning `Error.Forbidden` → 403. Reads are public. API tests never call the provider: `TestTokens` issues tokens signed with a test key, and `CatalogApiFactory` trusts that key.
