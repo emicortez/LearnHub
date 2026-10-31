@@ -83,6 +83,18 @@ public sealed class CourseTests
     }
 
     [Fact]
+    public void AddLesson_with_a_fraction_of_a_second_fails()
+    {
+        var course = CreateDraftCourse();
+
+        var result = course.AddLesson("Introduction", TimeSpan.FromSeconds(1.5));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(CourseErrors.DurationNotWholeSeconds, result.Error);
+        Assert.Empty(course.Lessons);
+    }
+
+    [Fact]
     public void AddLesson_when_not_draft_fails()
     {
         var course = CreatePublishedCourse();

@@ -34,6 +34,9 @@ public static class CourseErrors
     public static readonly Error InvalidDuration =
         Error.Validation("catalog.lesson.invalid_duration", "The lesson duration must be greater than zero.");
 
+    public static readonly Error DurationNotWholeSeconds =
+        Error.Validation("catalog.lesson.duration_not_whole_seconds", "The lesson duration must be in whole seconds.");
+
     public static readonly Error NotOwner =
         Error.Forbidden("catalog.course.not_owner", "Only the course's instructor can perform this operation.");
 

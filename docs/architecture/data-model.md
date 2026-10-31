@@ -125,10 +125,17 @@ An isolation level above `READ COMMITTED` is only safe with a retry: without one
 | `Course.Title` | `title` | Value converter through `CourseTitle.Create` |
 | `Course.Price` | `price_amount`, `price_currency` | Complex property: the value object has no key and no table |
 | `Course.Status` | `status` | Converter to the lowercase values of `ck_courses_status` |
+| `Course.Lessons` | `lessons` | One-to-many over the private `_lessons` field, with no navigation back and `ON DELETE CASCADE` |
+| `Lesson.Id` | `id` | The domain creates it, so `ValueGeneratedNever` |
+| `Lesson.Duration` | `duration_seconds` | Converter to whole seconds; a value past `integer` throws instead of wrapping |
+| none | `course_id`, `position` | Shadow properties: a lesson does not know where it sits in the aggregate |
 
 - `Course` has a private constructor taking only the id, for EF Core. `Entity` rejects an empty id, so a parameterless one would need a fake id.
-- `Lessons` is not mapped yet. `DomainEvents` is never stored.
-- `CatalogDbContextTests` pins the behavior: a loaded course needs no `Update` call, the save writes only the changed column, and `Update` on it writes every column. Two queries for one row reach the database twice and return one instance.
+- `DomainEvents` is never stored.
+- `Course.AddLesson` rejects a fraction of a second (`catalog.lesson.duration_not_whole_seconds`), as `Money` rejects a third decimal: the column stores whole seconds, and rounding would change the value silently.
+- `CatalogDbContext` numbers new lessons when saving: each goes after the highest position loaded, and stored lessons keep theirs. `AutoInclude` therefore has to load the whole aggregate, or a new lesson would reuse a position and fail on `uq_lessons_course_position`.
+- `AutoInclude` cannot sort, so any read that needs the order of `Lessons` uses `CoursesWithOrderedLessons`.
+- `CatalogDbContextTests` pins the behavior: a loaded course needs no `Update` call, the save writes only the changed column, and `Update` on it writes every column and its lessons too. Two queries for one row reach the database twice and return one instance.
 
 ### Denormalization rule
 

@@ -73,6 +73,11 @@ public sealed class Course : AggregateRoot
             return Result.Failure<Lesson>(CourseErrors.InvalidDuration);
         }
 
+        if (duration.Ticks % TimeSpan.TicksPerSecond != 0)
+        {
+            return Result.Failure<Lesson>(CourseErrors.DurationNotWholeSeconds);
+        }
+
         var lesson = new Lesson(Guid.CreateVersion7(), title.Trim(), duration);
         _lessons.Add(lesson);
 
