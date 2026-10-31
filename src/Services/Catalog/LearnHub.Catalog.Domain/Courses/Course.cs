@@ -20,6 +20,15 @@ public sealed class Course : AggregateRoot
         Status = CourseStatus.Draft;
     }
 
+    // For EF Core, which sets the other members from the row. It takes the id because Entity rejects an empty one.
+    private Course(Guid id)
+        : base(id)
+    {
+        Title = null!;
+        Slug = null!;
+        Price = null!;
+    }
+
     public Guid InstructorId { get; }
 
     public CourseTitle Title { get; }
