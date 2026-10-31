@@ -34,6 +34,7 @@
     <!-- Hosting integration: keep on the Aspire.AppHost.Sdk version. -->
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.1" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 
   <!-- Authentication -->

@@ -3,6 +3,10 @@
   <!-- Implementations of the Catalog application ports: persistence and external services. -->
 
   <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\LearnHub.Catalog.Application\LearnHub.Catalog.Application.csproj" />
   </ItemGroup>
 

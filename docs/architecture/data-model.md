@@ -115,6 +115,21 @@ Catalog has no SQL writes yet (the repository arrives in module 6), so this is t
 
 An isolation level above `READ COMMITTED` is only safe with a retry: without one, it turns a silent bug into an error for the user. The read and the write must also share the transaction, since a read in its own transaction has a snapshot of its own.
 
+### EF Core mapping
+
+[`CatalogDbContext`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/CatalogDbContext.cs) maps the `Course` aggregate onto this schema, which stays the contract. The API does not use it yet.
+
+| Domain | Column | How |
+|---|---|---|
+| `Course.Id` | `id` | The domain creates it, so `ValueGeneratedNever` |
+| `Course.Title` | `title` | Value converter through `CourseTitle.Create` |
+| `Course.Price` | `price_amount`, `price_currency` | Complex property: the value object has no key and no table |
+| `Course.Status` | `status` | Converter to the lowercase values of `ck_courses_status` |
+
+- `Course` has a private constructor taking only the id, for EF Core. `Entity` rejects an empty id, so a parameterless one would need a fake id.
+- `Lessons` is not mapped yet. `DomainEvents` is never stored.
+- `CatalogDbContextTests` pins the behavior: a loaded course needs no `Update` call, the save writes only the changed column, and `Update` on it writes every column. Two queries for one row reach the database twice and return one instance.
+
 ### Denormalization rule
 
 Catalog stores no duplicated or precomputed data. Before any is added:
