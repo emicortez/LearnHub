@@ -91,7 +91,8 @@ public sealed class CatalogDbContextTests(CatalogDatabaseFixture database) : IAs
         _commands.Clear();
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var update = Assert.Single(_commands);
+        // Update walks the graph, so the course's lesson gets an UPDATE of its own too.
+        var update = Assert.Single(_commands, command => command.Contains("UPDATE courses", StringComparison.Ordinal));
         Assert.Contains("status", update, StringComparison.Ordinal);
         Assert.Contains("title", update, StringComparison.Ordinal);
         Assert.Contains("price_amount", update, StringComparison.Ordinal);
@@ -158,6 +159,145 @@ public sealed class CatalogDbContextTests(CatalogDatabaseFixture database) : IAs
         Assert.Equal(CourseStatus.Archived, again.Status);
     }
 
+    [Fact]
+    public async Task Saved_course_is_read_back_with_its_lessons_in_order()
+    {
+        var course = NewCourse();
+        var first = course.AddLesson("Dependency rule", TimeSpan.FromMinutes(10)).Value;
+        var second = course.AddLesson("Use cases", TimeSpan.FromMinutes(90)).Value;
+        await SaveAsync(course);
+
+        await using var context = NewContext();
+        var loaded = await context.CoursesWithOrderedLessons
+            .SingleAsync(c => c.Id == course.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal([first.Id, second.Id], loaded.Lessons.Select(lesson => lesson.Id));
+        Assert.Equal(["Dependency rule", "Use cases"], loaded.Lessons.Select(lesson => lesson.Title));
+        Assert.Equal(TimeSpan.FromMinutes(100), loaded.TotalDuration);
+    }
+
+    [Fact]
+    public async Task Lessons_are_stored_with_their_course_position_and_whole_seconds()
+    {
+        var course = NewCourse();
+        Assert.True(course.AddLesson("Dependency rule", TimeSpan.FromMinutes(10)).IsSuccess);
+        Assert.True(course.AddLesson("Use cases", TimeSpan.FromSeconds(90)).IsSuccess);
+        await SaveAsync(course);
+
+        Assert.Equal([(course.Id, 600, 1), (course.Id, 90, 2)], await StoredLessonsAsync());
+    }
+
+    [Fact]
+    public async Task Ordered_lessons_follow_the_stored_position_not_the_ids()
+    {
+        var course = NewCourse();
+        Assert.True(course.AddLesson("Dependency rule", TimeSpan.FromMinutes(10)).IsSuccess);
+        Assert.True(course.AddLesson("Use cases", TimeSpan.FromMinutes(10)).IsSuccess);
+        await SaveAsync(course);
+        await ReversePositionsAgainstIdsAsync(course.Id);
+
+        await using var context = NewContext();
+        var loaded = await context.CoursesWithOrderedLessons
+            .SingleAsync(c => c.Id == course.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal(await LessonIdsByPositionAsync(), loaded.Lessons.Select(lesson => lesson.Id));
+    }
+
+    [Fact]
+    public async Task Plain_query_loads_the_whole_aggregate()
+    {
+        var course = NewCourse();
+        Assert.True(course.AddLesson("Dependency rule", TimeSpan.FromMinutes(10)).IsSuccess);
+        await SaveAsync(course);
+
+        await using var context = NewContext();
+        var loaded = await context.Courses.SingleAsync(c => c.Id == course.Id, TestContext.Current.CancellationToken);
+
+        Assert.True(loaded.Publish().IsSuccess);
+    }
+
+    [Fact]
+    public async Task Adding_a_lesson_to_a_loaded_course_inserts_one_row_at_the_next_position()
+    {
+        var course = NewCourse();
+        Assert.True(course.AddLesson("Dependency rule", TimeSpan.FromMinutes(10)).IsSuccess);
+        Assert.True(course.AddLesson("Use cases", TimeSpan.FromMinutes(10)).IsSuccess);
+        await SaveAsync(course);
+
+        await using var context = NewContext();
+        var loaded = await context.CoursesWithOrderedLessons
+            .SingleAsync(c => c.Id == course.Id, TestContext.Current.CancellationToken);
+        Assert.True(loaded.AddLesson("Adapters", TimeSpan.FromMinutes(5)).IsSuccess);
+        _commands.Clear();
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var insert = Assert.Single(_commands);
+        Assert.Contains("INSERT INTO lessons", insert, StringComparison.Ordinal);
+        Assert.Equal([1, 2, 3], (await StoredLessonsAsync()).Select(lesson => lesson.Position));
+    }
+
+    [Fact]
+    public async Task Saving_a_course_loaded_in_any_order_keeps_the_stored_positions()
+    {
+        var course = NewCourse();
+        Assert.True(course.AddLesson("Dependency rule", TimeSpan.FromMinutes(10)).IsSuccess);
+        Assert.True(course.AddLesson("Use cases", TimeSpan.FromMinutes(10)).IsSuccess);
+        await SaveAsync(course);
+        await ReversePositionsAgainstIdsAsync(course.Id);
+        var stored = await LessonIdsByPositionAsync();
+
+        await using var context = NewContext();
+        var loaded = await context.Courses.SingleAsync(c => c.Id == course.Id, TestContext.Current.CancellationToken);
+        Assert.True(loaded.ChangePrice(Money.Create(59.99m, "USD").Value).IsSuccess);
+        _commands.Clear();
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Single(_commands);
+        Assert.Equal(stored, await LessonIdsByPositionAsync());
+    }
+
+    [Fact]
+    public async Task Shadow_position_can_be_queried_and_read_from_the_tracker()
+    {
+        var course = NewCourse();
+        Assert.True(course.AddLesson("Dependency rule", TimeSpan.FromMinutes(10)).IsSuccess);
+        var second = course.AddLesson("Use cases", TimeSpan.FromMinutes(10)).Value;
+        await SaveAsync(course);
+
+        await using var context = NewContext();
+        var lesson = await context.Set<Lesson>()
+            .SingleAsync(l => EF.Property<int>(l, "Position") == 2, TestContext.Current.CancellationToken);
+
+        Assert.Equal(second.Id, lesson.Id);
+        Assert.Equal(2, context.Entry(lesson).Property<int>("Position").CurrentValue);
+    }
+
+    [Fact]
+    public async Task Deleting_a_course_deletes_its_lessons()
+    {
+        var course = NewCourse();
+        Assert.True(course.AddLesson("Dependency rule", TimeSpan.FromMinutes(10)).IsSuccess);
+        await SaveAsync(course);
+
+        await using var context = NewContext();
+        var loaded = await context.Courses.SingleAsync(c => c.Id == course.Id, TestContext.Current.CancellationToken);
+        context.Courses.Remove(loaded);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(await StoredLessonsAsync());
+    }
+
+    [Fact]
+    public async Task Duration_beyond_the_column_range_fails_instead_of_wrapping()
+    {
+        var course = NewCourse();
+        Assert.True(course.AddLesson("Too long", TimeSpan.FromSeconds(int.MaxValue + 1L)).IsSuccess);
+
+        var exception = await Assert.ThrowsAsync<DbUpdateException>(() => SaveAsync(course));
+        Assert.IsType<OverflowException>(exception.InnerException);
+        Assert.Empty(await StoredLessonsAsync());
+    }
+
     private static Course NewCourse() => Course.Create(
         InstructorId,
         CourseTitle.Create("Clean Architecture in .NET " + Guid.CreateVersion7()).Value,
@@ -174,10 +314,70 @@ public sealed class CatalogDbContextTests(CatalogDatabaseFixture database) : IAs
     private async Task<Course> SavePublishedCourseAsync()
     {
         var course = NewPublishedCourse();
+        await SaveAsync(course);
+        return course;
+    }
+
+    private async Task SaveAsync(Course course)
+    {
         await using var context = NewContext();
         context.Courses.Add(course);
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
-        return course;
+    }
+
+    private async Task<List<(Guid CourseId, int Seconds, int Position)>> StoredLessonsAsync()
+    {
+        await using var command = _db.CreateCommand(
+            "SELECT course_id, duration_seconds, position FROM lessons ORDER BY position");
+        await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+
+        var lessons = new List<(Guid, int, int)>();
+        while (await reader.ReadAsync(TestContext.Current.CancellationToken))
+        {
+            lessons.Add((reader.GetGuid(0), reader.GetInt32(1), reader.GetInt32(2)));
+        }
+
+        return lessons;
+    }
+
+    // Lessons created in the same millisecond have ids in no fixed order, so the positions are set against the ids in
+    // SQL: an order that comes from the ids, and not from the position, cannot pass by luck. Moved out of the way first,
+    // because uq_lessons_course_position is checked after each statement.
+    private async Task ReversePositionsAgainstIdsAsync(Guid courseId)
+    {
+        await using var batch = _db.CreateBatch();
+        foreach (var sql in new[]
+        {
+            "UPDATE lessons SET position = position + 100 WHERE course_id = $1",
+            """
+            UPDATE lessons AS l
+            SET position = ranked.position
+            FROM (SELECT id, row_number() OVER (ORDER BY id DESC) AS position FROM lessons WHERE course_id = $1) AS ranked
+            WHERE l.id = ranked.id
+            """,
+        })
+        {
+            var command = batch.CreateBatchCommand();
+            command.CommandText = sql;
+            command.Parameters.AddWithValue(courseId);
+            batch.BatchCommands.Add(command);
+        }
+
+        await batch.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<List<Guid>> LessonIdsByPositionAsync()
+    {
+        await using var command = _db.CreateCommand("SELECT id FROM lessons ORDER BY position");
+        await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+
+        var ids = new List<Guid>();
+        while (await reader.ReadAsync(TestContext.Current.CancellationToken))
+        {
+            ids.Add(reader.GetGuid(0));
+        }
+
+        return ids;
     }
 
     private async Task<CourseStatus> StoredStatusAsync(Guid id)

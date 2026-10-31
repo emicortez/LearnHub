@@ -42,9 +42,18 @@ internal sealed class CourseConfiguration : IEntityTypeConfiguration<Course>
         // Dispatched after saving, never stored.
         builder.Ignore(course => course.DomainEvents);
 
-        // Lessons are mapped with the rest of the aggregate in lesson 6.2.
-        builder.Ignore(course => course.Lessons);
         builder.Ignore(course => course.TotalDuration);
+
+        builder.HasMany(course => course.Lessons)
+            .WithOne()
+            .HasForeignKey(LessonConfiguration.CourseId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // EF Core fills the private list. Every query loads it, because the aggregate's rules need all its lessons.
+        builder.Navigation(course => course.Lessons)
+            .HasField("_lessons")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .AutoInclude();
     }
 
     private sealed class CourseStatusConverter()

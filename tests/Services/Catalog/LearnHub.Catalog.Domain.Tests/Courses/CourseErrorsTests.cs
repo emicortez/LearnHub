@@ -18,6 +18,7 @@ public sealed class CourseErrorsTests
                 CourseErrors.InvalidCurrency,
                 CourseErrors.LessonTitleRequired,
                 CourseErrors.InvalidDuration,
+                CourseErrors.DurationNotWholeSeconds,
             ],
             error => Assert.Equal(ErrorType.Validation, error.Type));
     }
