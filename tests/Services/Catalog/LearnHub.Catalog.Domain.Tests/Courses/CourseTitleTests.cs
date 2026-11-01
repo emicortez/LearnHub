@@ -26,10 +26,45 @@ public sealed class CourseTitleTests
         Assert.NotEmpty(SlugGenerator.Generate(title.Value.Value));
     }
 
-    [Fact]
-    public void Create_with_a_null_character_fails()
+    [Theory]
+    [InlineData("Null\0Character")]
+    [InlineData("Probe \uFFFE title")] // A noncharacter, which string.Normalize rejects.
+    public void Create_with_an_invalid_character_fails(string value)
     {
-        Assert.Equal(CourseErrors.TitleInvalidCharacter, CourseTitle.Create("Null\0Character").Error);
+        Assert.Equal(CourseErrors.TitleInvalidCharacter, CourseTitle.Create(value).Error);
+    }
+
+    [Fact]
+    public void Create_with_a_lone_surrogate_fails()
+    {
+        // Not an InlineData: the test runner replaces a lone surrogate when it serializes the arguments.
+        Assert.Equal(CourseErrors.TitleInvalidCharacter, CourseTitle.Create("Probe \uD800 title").Error);
+    }
+
+    [Fact]
+    public void Create_keeps_a_title_of_one_compatibility_ideograph()
+    {
+        // A surrogate pair, so no single char is a letter, but it normalizes to one.
+        Assert.True(CourseTitle.Create("\U0002F800").IsSuccess);
+    }
+
+    [Fact]
+    public void Every_title_accepted_gives_a_slug()
+    {
+        for (var codePoint = 1; codePoint <= 0x10FFFF; codePoint++)
+        {
+            if (codePoint is >= 0xD800 and <= 0xDFFF)
+            {
+                continue;
+            }
+
+            var title = CourseTitle.Create(char.ConvertFromUtf32(codePoint));
+
+            if (title.IsSuccess)
+            {
+                Assert.NotEmpty(SlugGenerator.Generate(title.Value.Value));
+            }
+        }
     }
 
     [Fact]

@@ -23,7 +23,7 @@ public static class CourseErrors
         Error.Validation("catalog.course.title_without_letters", "The course title needs at least one letter or digit.");
 
     public static readonly Error TitleInvalidCharacter =
-        Error.Validation("catalog.course.title_invalid_character", "The course title must not contain a null character.");
+        Error.Validation("catalog.course.title_invalid_character", "The course title contains an invalid character.");
 
     public static readonly Error NegativeAmount =
         Error.Validation("catalog.money.negative_amount", "The amount must not be negative.");
