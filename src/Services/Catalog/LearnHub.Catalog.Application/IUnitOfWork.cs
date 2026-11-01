@@ -10,7 +10,8 @@ public interface IUnitOfWork
 {
     /// <summary>
     /// Commits the pending changes, then dispatches the domain events they raised. A database rule that is a
-    /// business rule, such as a taken slug, comes back as a failure; nothing is committed or dispatched then.
+    /// business rule, such as a taken slug, or a row someone else changed first, comes back as a failure; nothing is
+    /// committed or dispatched then.
     /// </summary>
     Task<Result> SaveChangesAsync(CancellationToken cancellationToken);
 }

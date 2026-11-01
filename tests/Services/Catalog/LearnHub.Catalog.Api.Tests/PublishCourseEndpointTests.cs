@@ -12,8 +12,7 @@ public sealed class PublishCourseEndpointTests(CatalogApiFactory factory)
     {
         var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
 
-        var response = await client.PostAsync(
-            $"/courses/{Guid.NewGuid()}/publish", content: null, TestContext.Current.CancellationToken);
+        var response = await client.PublishAsync(Guid.NewGuid());
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
@@ -30,8 +29,7 @@ public sealed class PublishCourseEndpointTests(CatalogApiFactory factory)
         var created = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
         var id = (await ReadJsonAsync(created)).GetProperty("id").GetGuid();
 
-        var response = await client.PostAsync(
-            $"/courses/{id}/publish", content: null, TestContext.Current.CancellationToken);
+        var response = await client.PublishAsync(id);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);

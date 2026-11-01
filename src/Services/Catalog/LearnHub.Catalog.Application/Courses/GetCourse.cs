@@ -15,7 +15,8 @@ public sealed record CourseDetails(
     string Slug,
     decimal Price,
     string Currency,
-    string Status);
+    string Status,
+    uint Version);
 
 /// <summary>
 /// Handles <see cref="GetCourse"/>. The query reads through the repository until module 6,
@@ -38,6 +39,7 @@ public sealed class GetCourseHandler(ICourseRepository courses)
                 course.Slug,
                 course.Price.Amount,
                 course.Price.Currency,
-                course.Status.ToString());
+                course.Status.ToString(),
+                courses.GetVersion(course));
     }
 }

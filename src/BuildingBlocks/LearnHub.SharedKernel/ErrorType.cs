@@ -17,4 +17,10 @@ public enum ErrorType
 
     /// <summary>The caller is known but may not perform the operation on this resource (for example, it is not theirs).</summary>
     Forbidden,
+
+    /// <summary>The operation must name the version of the resource it is based on, and it did not.</summary>
+    PreconditionRequired,
+
+    /// <summary>The version the operation is based on is not the current one.</summary>
+    PreconditionFailed,
 }

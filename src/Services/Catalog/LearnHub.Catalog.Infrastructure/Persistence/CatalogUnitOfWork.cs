@@ -24,6 +24,11 @@ public sealed class CatalogUnitOfWork(CatalogDbContext context, IDomainEventDisp
         {
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Never retried here: the decision was taken on data that changed, so the client has to take it again.
+            return CourseErrors.VersionMismatch;
+        }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
         {
             SqlState: PostgresErrorCodes.UniqueViolation,

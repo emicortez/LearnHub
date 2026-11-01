@@ -28,7 +28,7 @@ public sealed class AuthorizationTests(CatalogApiFactory factory)
         var courseId = await CreateCourseAsync(Guid.NewGuid());
         var client = factory.CreateClientWithToken(token);
 
-        var response = await client.PostAsync($"/courses/{courseId}/publish", content: null, TestContext.Current.CancellationToken);
+        var response = await client.PublishAsync(courseId);
 
         Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{who} got {response.StatusCode}, expected 403.");
     }
@@ -59,8 +59,7 @@ public sealed class AuthorizationTests(CatalogApiFactory factory)
         var courseId = await CreateCourseAsync(ownerId);
         var otherInstructor = factory.CreateAuthenticatedClient(Guid.NewGuid());
 
-        var response = await otherInstructor.PostAsync(
-            $"/courses/{courseId}/publish", content: null, TestContext.Current.CancellationToken);
+        var response = await otherInstructor.PublishAsync(courseId);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
@@ -80,7 +79,7 @@ public sealed class AuthorizationTests(CatalogApiFactory factory)
         var courseId = await CreateCourseAsync(ownerId);
 
         var response = await factory.CreateAuthenticatedClient(ownerId)
-            .PostAsync($"/courses/{courseId}/publish", content: null, TestContext.Current.CancellationToken);
+            .PublishAsync(courseId);
 
         // Past authorization, the domain decides: a course without lessons cannot be published yet.
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);

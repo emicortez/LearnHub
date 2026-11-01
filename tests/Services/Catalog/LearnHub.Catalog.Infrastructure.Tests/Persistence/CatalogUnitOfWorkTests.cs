@@ -163,6 +163,76 @@ public sealed class CatalogUnitOfWorkTests(CatalogDatabaseFixture database) : IA
         Assert.Equal("uq_lessons_course_position", violation.ConstraintName);
     }
 
+    [Fact]
+    public async Task A_row_changed_since_it_was_loaded_is_a_failure_and_dispatches_nothing()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var course = NewCourse("Stale Course");
+        Assert.True(course.AddLesson("Introduction", TimeSpan.FromMinutes(5)).IsSuccess);
+        await SaveAsync(course);
+
+        await using var first = NewContext();
+        await using var second = NewContext();
+        var firstCopy = await new CourseRepository(first).GetAsync(course.Id, cancellationToken);
+        var secondCopy = await new CourseRepository(second).GetAsync(course.Id, cancellationToken);
+        Assert.True(firstCopy!.Publish().IsSuccess);
+        Assert.True(secondCopy!.Publish().IsSuccess);
+        await new CatalogUnitOfWork(first, new RecordingDispatcher()).SaveChangesAsync(cancellationToken);
+        var dispatcher = new RecordingDispatcher();
+
+        var saved = await new CatalogUnitOfWork(second, dispatcher).SaveChangesAsync(cancellationToken);
+
+        Assert.True(saved.IsFailure);
+        Assert.Equal(CourseErrors.VersionMismatch, saved.Error);
+        Assert.Empty(dispatcher.Events);
+        Assert.NotEmpty(secondCopy.DomainEvents);
+    }
+
+    [Fact]
+    public async Task The_version_changes_when_the_course_is_written()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var course = NewCourse("Versioned Course");
+        Assert.True(course.AddLesson("Introduction", TimeSpan.FromMinutes(5)).IsSuccess);
+        await using var context = NewContext();
+        var repository = new CourseRepository(context);
+        var unitOfWork = new CatalogUnitOfWork(context, new RecordingDispatcher());
+        repository.Add(course);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        var created = repository.GetVersion(course);
+
+        Assert.True(course.Publish().IsSuccess);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        Assert.NotEqual(created, repository.GetVersion(course));
+        Assert.Equal(repository.GetVersion(course), await ReadVersionAsync(course.Id));
+    }
+
+    [Fact]
+    public async Task Adding_a_lesson_does_not_change_the_version_of_the_course()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var course = NewCourse("Lessons Stored Apart");
+        await SaveAsync(course);
+        var before = await ReadVersionAsync(course.Id);
+
+        await using var context = NewContext();
+        var loaded = await new CourseRepository(context).GetAsync(course.Id, cancellationToken);
+        Assert.True(loaded!.AddLesson("Introduction", TimeSpan.FromMinutes(5)).IsSuccess);
+        await new CatalogUnitOfWork(context, new RecordingDispatcher()).SaveChangesAsync(cancellationToken);
+
+        Assert.Equal(before, await ReadVersionAsync(course.Id));
+    }
+
+    private async Task<uint> ReadVersionAsync(Guid id)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var context = NewContext();
+        var repository = new CourseRepository(context);
+
+        return repository.GetVersion((await repository.GetAsync(id, cancellationToken))!);
+    }
+
     private static Course NewCourse(string title) =>
         Course.Create(Guid.NewGuid(), CourseTitle.Create(title).Value, Money.Create(25m, "USD").Value);
 

@@ -17,4 +17,10 @@ public interface ICourseRepository
     Task<IReadOnlyList<Course>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken);
 
     void Add(Course course);
+
+    /// <summary>
+    /// The version of a course this repository loaded or saved. It changes with each write to the course itself;
+    /// adding a lesson does not change it, because lessons are stored apart.
+    /// </summary>
+    uint GetVersion(Course course);
 }

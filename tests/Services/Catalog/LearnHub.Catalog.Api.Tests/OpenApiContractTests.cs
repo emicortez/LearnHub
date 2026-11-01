@@ -26,6 +26,8 @@ public sealed class OpenApiContractTests(CatalogApiFactory factory)
     [InlineData("/courses/{id}/publish", "post", "403")]
     [InlineData("/courses/{id}/publish", "post", "404")]
     [InlineData("/courses/{id}/publish", "post", "409")]
+    [InlineData("/courses/{id}/publish", "post", "412")]
+    [InlineData("/courses/{id}/publish", "post", "428")]
     [InlineData("/courses/{id}/publish", "post", "429")]
     public async Task OpenApi_document_describes_each_endpoint_response(string path, string method, string status)
     {

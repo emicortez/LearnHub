@@ -49,5 +49,7 @@ public sealed class UnhandledExceptionTests(CatalogApiFactory factory)
             throw new InvalidOperationException(SecretMessage);
 
         public void Add(Course course) => throw new InvalidOperationException(SecretMessage);
+
+        public uint GetVersion(Course course) => throw new NotSupportedException();
     }
 }

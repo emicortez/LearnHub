@@ -36,4 +36,10 @@ public sealed record Error
     public static Error Conflict(string code, string description) => new(code, description, ErrorType.Conflict);
 
     public static Error Forbidden(string code, string description) => new(code, description, ErrorType.Forbidden);
+
+    public static Error PreconditionRequired(string code, string description) =>
+        new(code, description, ErrorType.PreconditionRequired);
+
+    public static Error PreconditionFailed(string code, string description) =>
+        new(code, description, ErrorType.PreconditionFailed);
 }
