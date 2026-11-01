@@ -1,9 +1,9 @@
 namespace LearnHub.Catalog.Application.Courses;
 
 /// <summary>
-/// Reads the details of one course.
+/// Reads the details of one course. <paramref name="ViewerId"/> is who asks, or null for an anonymous reader.
 /// </summary>
-public sealed record GetCourse(Guid CourseId);
+public sealed record GetCourse(Guid CourseId, Guid? ViewerId);
 
 /// <summary>
 /// A read model of a course: plain data, no behavior, safe to hand to any caller.
@@ -27,6 +27,6 @@ public sealed class GetCourseHandler(ICourseQueries courses)
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        return courses.GetAsync(query.CourseId, cancellationToken);
+        return courses.GetAsync(query.CourseId, query.ViewerId, cancellationToken);
     }
 }

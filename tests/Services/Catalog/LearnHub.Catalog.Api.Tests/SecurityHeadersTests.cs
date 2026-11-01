@@ -217,10 +217,14 @@ public sealed class SecurityHeadersTests(CatalogApiFactory factory)
 
     private sealed class ThrowingCourseQueries : ICourseQueries
     {
-        public Task<CourseDetails?> GetAsync(Guid id, CancellationToken cancellationToken) =>
+        public Task<CourseDetails?> GetAsync(Guid id, Guid? viewerId, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Query failure.");
 
-        public Task<IReadOnlyList<CourseSummary>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<CourseSummary>> ListAsync(
+            Guid? viewerId,
+            Guid? afterId,
+            int take,
+            CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Query failure.");
 
         public Task<IReadOnlyList<PublishedCourse>> ListPublishedAsync(

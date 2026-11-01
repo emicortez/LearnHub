@@ -73,6 +73,12 @@ public static class AuthenticationServiceCollectionExtensions
     }
 
     /// <summary>
+    /// The user id of whoever signed in, or null for an anonymous request.
+    /// </summary>
+    public static Guid? FindUserId(this ClaimsPrincipal user) =>
+        user.TryGetUserId(out var userId) ? userId : null;
+
+    /// <summary>
     /// The user id of a request that passed the default policy. Throws if called on an endpoint without it.
     /// </summary>
     public static Guid GetUserId(this ClaimsPrincipal user) =>

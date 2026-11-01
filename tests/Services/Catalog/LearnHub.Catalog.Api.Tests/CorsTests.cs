@@ -151,9 +151,9 @@ public sealed class CorsTests(CatalogApiFactory factory)
     public async Task The_page_can_read_the_etag_of_a_course()
     {
         var host = CreateHost();
-        var created = await host.CreateAuthenticatedClient(Guid.NewGuid())
+        var client = host.CreateAuthenticatedClient(Guid.NewGuid());
+        var created = await client
             .PostAsJsonAsync("/courses", new { title = "CORS ETag", price = 10m, currency = "USD" }, TestContext.Current.CancellationToken);
-        var client = host.CreateClient();
 
         var response = await SendAsync(client, HttpMethod.Get, created.Headers.Location!.AbsolutePath, FrontendOrigin);
 

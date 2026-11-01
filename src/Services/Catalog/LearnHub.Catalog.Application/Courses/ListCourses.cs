@@ -2,8 +2,9 @@ namespace LearnHub.Catalog.Application.Courses;
 
 /// <summary>
 /// Reads one page of courses, ordered by id, starting after <paramref name="After"/> (keyset pagination).
+/// <paramref name="ViewerId"/> is who asks, or null for an anonymous reader.
 /// </summary>
-public sealed record ListCourses(int Limit, Guid? After);
+public sealed record ListCourses(int Limit, Guid? After, Guid? ViewerId);
 
 /// <summary>
 /// The short form of a course shown in lists.
@@ -32,7 +33,7 @@ public sealed class ListCoursesHandler(ICourseQueries courses)
         ArgumentNullException.ThrowIfNull(query);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(query.Limit);
 
-        var rows = await courses.ListAsync(query.After, query.Limit + 1, cancellationToken).ConfigureAwait(false);
+        var rows = await courses.ListAsync(query.ViewerId, query.After, query.Limit + 1, cancellationToken).ConfigureAwait(false);
 
         var hasNextPage = rows.Count > query.Limit;
         var items = rows.Take(query.Limit).ToList();

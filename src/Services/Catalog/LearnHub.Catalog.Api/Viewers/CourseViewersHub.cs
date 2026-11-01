@@ -1,3 +1,4 @@
+using LearnHub.Catalog.Api.Authentication;
 using LearnHub.Catalog.Application.Courses;
 
 using Microsoft.AspNetCore.SignalR;
@@ -14,7 +15,7 @@ public sealed class CourseViewersHub(GetCourseHandler getCourse, ICourseViewerPr
 {
     public async Task WatchCourse(Guid courseId)
     {
-        var course = await getCourse.HandleAsync(new GetCourse(courseId), Context.ConnectionAborted);
+        var course = await getCourse.HandleAsync(new GetCourse(courseId, Context.User?.FindUserId()), Context.ConnectionAborted);
         if (course is null)
         {
             // Only a HubException's message reaches the client; any other exception is reported as a generic error.

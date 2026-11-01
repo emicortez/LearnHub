@@ -22,7 +22,8 @@ public static class CourseEndpoints
 
         // ProblemHttpResult picks its status at runtime, so error responses are declared explicitly
         // for the OpenAPI document; typed results such as Ok<T> and NotFound document themselves.
-        // Writes need a signed-in instructor (401 without a valid token, 403 for anyone else); reads stay public.
+        // Writes need a signed-in instructor (401 without a valid token, 403 for anyone else). Reads need no token: it only
+        // adds the reader's own unpublished courses. The output cache skips a request with one, so they are never shared.
         group.MapPost("/", CreateCourseAsync)
             .WithSummary("Create a draft course")
             .RequireAuthorization(CatalogPolicies.Instructor)
@@ -39,13 +40,13 @@ public static class CourseEndpoints
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         group.MapGet("/", ListCoursesAsync)
-            .WithSummary("List courses one page at a time")
+            .WithSummary("List published courses and your own, one page at a time")
             .CacheOutput(OutputCachingServiceCollectionExtensions.CoursesPolicy)
             .ProducesValidationProblem();
 
         group.MapGet("/{id:guid}", GetCourseAsync)
             .WithName(GetCourseRoute)
-            .WithSummary("Get a course by id")
+            .WithSummary("Get a published course, or one of your own, by id")
             .ReturnsETag()
             .CacheOutput(OutputCachingServiceCollectionExtensions.CoursesPolicy);
 
@@ -85,6 +86,7 @@ public static class CourseEndpoints
 
     private static async Task<Results<Ok<CoursePageResponse>, ProblemHttpResult>> ListCoursesAsync(
         [AsParameters] ListCoursesRequest request,
+        ClaimsPrincipal user,
         ListCoursesHandler handler,
         CancellationToken cancellationToken)
     {
@@ -97,7 +99,7 @@ public static class CourseEndpoints
             }
         }
 
-        var page = await handler.HandleAsync(new ListCourses(request.Limit, after), cancellationToken);
+        var page = await handler.HandleAsync(new ListCourses(request.Limit, after, user.FindUserId()), cancellationToken);
 
         var items = page.Items
             .Select(course => new CourseSummaryResponse(
@@ -111,11 +113,12 @@ public static class CourseEndpoints
 
     private static async Task<Results<Ok<CourseResponse>, NotFound>> GetCourseAsync(
         Guid id,
+        ClaimsPrincipal user,
         HttpResponse response,
         GetCourseHandler handler,
         CancellationToken cancellationToken)
     {
-        var course = await handler.HandleAsync(new GetCourse(id), cancellationToken);
+        var course = await handler.HandleAsync(new GetCourse(id, user.FindUserId()), cancellationToken);
 
         if (course is null)
         {

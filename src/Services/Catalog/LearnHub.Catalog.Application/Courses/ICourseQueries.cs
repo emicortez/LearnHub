@@ -9,13 +9,21 @@ namespace LearnHub.Catalog.Application.Courses;
 /// </summary>
 public interface ICourseQueries
 {
-    Task<CourseDetails?> GetAsync(Guid id, CancellationToken cancellationToken);
+    /// <summary>
+    /// A published course, or any course of <paramref name="viewerId"/>. Null for anything else, as for an unknown id,
+    /// so a course that is not public cannot be told from one that does not exist.
+    /// </summary>
+    Task<CourseDetails?> GetAsync(Guid id, Guid? viewerId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Returns up to <paramref name="take"/> courses with an id greater than <paramref name="afterId"/>
-    /// (all of them when it is null), ordered by id.
+    /// (all of them when it is null), ordered by id. Only published courses and those of <paramref name="viewerId"/>.
     /// </summary>
-    Task<IReadOnlyList<CourseSummary>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CourseSummary>> ListAsync(
+        Guid? viewerId,
+        Guid? afterId,
+        int take,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// The public catalog: up to <paramref name="take"/> published courses by title then slug, starting after

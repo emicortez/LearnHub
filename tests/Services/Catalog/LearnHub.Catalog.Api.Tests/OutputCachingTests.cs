@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-using LearnHub.Catalog.Application;
 using LearnHub.Catalog.Application.Courses;
 using LearnHub.Catalog.Infrastructure.Persistence;
 
@@ -20,7 +19,7 @@ public sealed class OutputCachingTests
     public async Task A_second_identical_detail_read_is_served_from_the_cache()
     {
         await using var host = new CachingHost();
-        var id = await host.CreateCourseAsync("Caching Basics");
+        var id = await host.CreatePublishedCourseAsync("Caching Basics");
 
         await host.GetJsonAsync($"/courses/{id}");
         await host.GetJsonAsync($"/courses/{id}");
@@ -32,7 +31,7 @@ public sealed class OutputCachingTests
     public async Task A_second_identical_list_read_is_served_from_the_cache()
     {
         await using var host = new CachingHost();
-        await host.CreateCourseAsync("Caching Lists");
+        await host.CreatePublishedCourseAsync("Caching Lists");
 
         await host.GetJsonAsync("/courses?limit=10");
         await host.GetJsonAsync("/courses?limit=10");
@@ -44,8 +43,8 @@ public sealed class OutputCachingTests
     public async Task Different_limit_and_cursor_values_are_cached_separately()
     {
         await using var host = new CachingHost();
-        await host.CreateCourseAsync("Course A");
-        await host.CreateCourseAsync("Course B");
+        await host.CreatePublishedCourseAsync("Course A");
+        await host.CreatePublishedCourseAsync("Course B");
         var firstPage = await host.GetJsonAsync("/courses?limit=1");
         var cursor = Uri.EscapeDataString(firstPage.GetProperty("nextCursor").GetString()!);
 
@@ -60,35 +59,16 @@ public sealed class OutputCachingTests
     }
 
     [Fact]
-    public async Task A_course_created_after_a_list_read_appears_in_the_next_identical_list_read()
+    public async Task A_course_published_after_a_list_read_appears_in_the_next_identical_list_read()
     {
         await using var host = new CachingHost();
         var before = await host.GetJsonAsync("/courses?limit=100");
         Assert.Empty(before.GetProperty("items").EnumerateArray());
 
-        var id = await host.CreateCourseAsync("Fresh Course");
+        var id = await host.CreatePublishedCourseAsync("Fresh Course");
         var after = await host.GetJsonAsync("/courses?limit=100");
 
         Assert.Contains(after.GetProperty("items").EnumerateArray(), item => item.GetProperty("id").GetGuid() == id);
-    }
-
-    [Fact]
-    public async Task A_published_course_reads_as_published_after_being_read_as_a_draft()
-    {
-        await using var host = new CachingHost();
-        var id = await host.CreateCourseAsync("Publish Me");
-        var draft = await host.GetJsonAsync($"/courses/{id}");
-        Assert.Equal("Draft", draft.GetProperty("status").GetString());
-
-        // The API cannot add lessons yet, so the lesson is saved directly;
-        // the publish itself goes through the API, and it is the write whose eviction is under test.
-        await host.AddLessonAsync(id);
-        var publish = await host.Writer.PublishAsync(id);
-        Assert.Equal(HttpStatusCode.NoContent, publish.StatusCode);
-
-        var published = await host.GetJsonAsync($"/courses/{id}");
-
-        Assert.Equal("Published", published.GetProperty("status").GetString());
     }
 
     [Fact]
@@ -126,26 +106,18 @@ public sealed class OutputCachingTests
 
         public HttpClient Writer { get; }
 
-        public async Task<Guid> CreateCourseAsync(string title)
+        // Reads count from here: publishing reads the course first.
+        public async Task<Guid> CreatePublishedCourseAsync(string title)
         {
             var request = new { title, price = 10m, currency = "USD" };
             var response = await Writer.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-            return (await ReadJsonAsync(response)).GetProperty("id").GetGuid();
-        }
+            var id = (await ReadJsonAsync(response)).GetProperty("id").GetGuid();
+            await _host.PublishWithLessonAsync(Writer, id);
+            Reads.Reset();
 
-        public async Task AddLessonAsync(Guid courseId)
-        {
-            var cancellationToken = TestContext.Current.CancellationToken;
-            await using var scope = _host.Services.CreateAsyncScope();
-
-            var course = await scope.ServiceProvider.GetRequiredService<ICourseRepository>()
-                .GetAsync(courseId, cancellationToken);
-            Assert.True(course!.AddLesson("Introduction", TimeSpan.FromMinutes(5)).IsSuccess);
-
-            var saved = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(cancellationToken);
-            Assert.True(saved.IsSuccess);
+            return id;
         }
 
         public async Task<JsonElement> GetJsonAsync(string path)
@@ -174,21 +146,27 @@ public sealed class OutputCachingTests
         public int Count => Volatile.Read(ref _count);
 
         public void Add() => Interlocked.Increment(ref _count);
+
+        public void Reset() => Interlocked.Exchange(ref _count, 0);
     }
 
     // Counts reads that reach the database; a read served from the output cache never gets here.
     private sealed class CountingCourseQueries(ICourseQueries inner, ReadCounter reads) : ICourseQueries
     {
-        public Task<CourseDetails?> GetAsync(Guid id, CancellationToken cancellationToken)
+        public Task<CourseDetails?> GetAsync(Guid id, Guid? viewerId, CancellationToken cancellationToken)
         {
             reads.Add();
-            return inner.GetAsync(id, cancellationToken);
+            return inner.GetAsync(id, viewerId, cancellationToken);
         }
 
-        public Task<IReadOnlyList<CourseSummary>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<CourseSummary>> ListAsync(
+            Guid? viewerId,
+            Guid? afterId,
+            int take,
+            CancellationToken cancellationToken)
         {
             reads.Add();
-            return inner.ListAsync(afterId, take, cancellationToken);
+            return inner.ListAsync(viewerId, afterId, take, cancellationToken);
         }
 
         public Task<IReadOnlyList<PublishedCourse>> ListPublishedAsync(

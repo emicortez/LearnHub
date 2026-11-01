@@ -34,7 +34,7 @@ public sealed class CourseQueriesTests(CatalogDatabaseFixture database) : IAsync
         await InsertLessonAsync(_db, id, position: 1);
 
         await using var context = NewContext();
-        var course = await new CourseQueries(context).GetAsync(id, TestContext.Current.CancellationToken);
+        var course = await new CourseQueries(context).GetAsync(id, viewerId: null, TestContext.Current.CancellationToken);
 
         Assert.Equal(
             new CourseDetails(
@@ -48,7 +48,27 @@ public sealed class CourseQueriesTests(CatalogDatabaseFixture database) : IAsync
     {
         await using var context = NewContext();
 
-        Assert.Null(await new CourseQueries(context).GetAsync(Guid.NewGuid(), TestContext.Current.CancellationToken));
+        Assert.Null(await new CourseQueries(context).GetAsync(Guid.NewGuid(), viewerId: null, TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData("draft")]
+    [InlineData("archived")]
+    public async Task An_unpublished_course_exists_only_for_its_owner(string status)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var instructorId = Guid.CreateVersion7();
+        var id = await InsertCourseAsync(_db, instructorId: instructorId, status: status);
+
+        await using var context = NewContext();
+        var queries = new CourseQueries(context);
+
+        Assert.NotNull(await queries.GetAsync(id, instructorId, cancellationToken));
+        Assert.Single(await queries.ListAsync(instructorId, afterId: null, take: 10, cancellationToken));
+        Assert.Null(await queries.GetAsync(id, viewerId: null, cancellationToken));
+        Assert.Empty(await queries.ListAsync(viewerId: null, afterId: null, take: 10, cancellationToken));
+        Assert.Null(await queries.GetAsync(id, Guid.CreateVersion7(), cancellationToken));
+        Assert.Empty(await queries.ListAsync(Guid.CreateVersion7(), afterId: null, take: 10, cancellationToken));
     }
 
     [Fact]
@@ -61,8 +81,8 @@ public sealed class CourseQueriesTests(CatalogDatabaseFixture database) : IAsync
 
         await using var context = NewContext();
         var queries = new CourseQueries(context);
-        await queries.GetAsync(id, cancellationToken);
-        await queries.ListAsync(afterId: null, take: 10, cancellationToken);
+        await queries.GetAsync(id, viewerId: null, cancellationToken);
+        await queries.ListAsync(viewerId: null, afterId: null, take: 10, cancellationToken);
         await queries.ListPublishedAsync(after: null, take: 10, cancellationToken);
         await queries.ListByInstructorAsync(instructorId, cancellationToken);
 
@@ -75,15 +95,15 @@ public sealed class CourseQueriesTests(CatalogDatabaseFixture database) : IAsync
         var cancellationToken = TestContext.Current.CancellationToken;
         Guid[] ids =
         [
-            await InsertCourseAsync(_db, status: "draft"),
             await InsertCourseAsync(_db, status: "published"),
-            await InsertCourseAsync(_db, status: "archived"),
+            await InsertCourseAsync(_db, status: "published"),
+            await InsertCourseAsync(_db, status: "published"),
         ];
 
         await using var context = NewContext();
         var queries = new CourseQueries(context);
-        var firstPage = await queries.ListAsync(afterId: null, take: 2, cancellationToken);
-        var lastPage = await queries.ListAsync(firstPage[^1].Id, take: 2, cancellationToken);
+        var firstPage = await queries.ListAsync(viewerId: null, afterId: null, take: 2, cancellationToken);
+        var lastPage = await queries.ListAsync(viewerId: null, firstPage[^1].Id, take: 2, cancellationToken);
 
         Assert.Equal(ids.Order().Take(2), firstPage.Select(course => course.Id));
         Assert.Equal(ids.Order().Skip(2), lastPage.Select(course => course.Id));
@@ -92,12 +112,13 @@ public sealed class CourseQueriesTests(CatalogDatabaseFixture database) : IAsync
     [Fact]
     public async Task List_returns_the_summary_of_each_course_with_its_status_name()
     {
+        var instructorId = Guid.CreateVersion7();
         var id = await InsertCourseAsync(
-            _db, title: "Clean Architecture", slug: "clean-architecture", priceAmount: 49.99m, priceCurrency: "EUR",
-            status: "archived");
+            _db, instructorId: instructorId, title: "Clean Architecture", slug: "clean-architecture",
+            priceAmount: 49.99m, priceCurrency: "EUR", status: "archived");
 
         await using var context = NewContext();
-        var page = await new CourseQueries(context).ListAsync(null, 10, TestContext.Current.CancellationToken);
+        var page = await new CourseQueries(context).ListAsync(instructorId, null, 10, TestContext.Current.CancellationToken);
 
         Assert.Equal(
             new CourseSummary(id, "Clean Architecture", "clean-architecture", 49.99m, "EUR", "Archived"),
