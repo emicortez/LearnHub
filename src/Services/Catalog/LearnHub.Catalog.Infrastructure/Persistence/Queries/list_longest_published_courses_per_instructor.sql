@@ -3,6 +3,7 @@
 -- ranked_courses numbers them within each instructor. The rank filter goes outside, because
 -- WHERE runs before window functions, and LIMIT 3 would cut the whole result, not each instructor.
 -- The unique slug breaks ties, so exactly three make the cut and the choice is deterministic.
+-- The quoted aliases are the LongestCourse properties that EF Core fills.
 WITH course_totals AS (
     SELECT
         c.id,
@@ -34,12 +35,12 @@ ranked_courses AS (
     FROM course_totals AS ct
 )
 SELECT
-    instructor_id,
-    id,
-    title,
-    slug,
-    total_duration_seconds,
-    rank
+    instructor_id AS "InstructorId",
+    id AS "Id",
+    title AS "Title",
+    slug AS "Slug",
+    total_duration_seconds AS "TotalDurationSeconds",
+    rank AS "Rank"
 FROM ranked_courses
 WHERE rank <= 3
 ORDER BY

@@ -1,3 +1,7 @@
+using LearnHub.Catalog.Infrastructure.Persistence;
+
+using Microsoft.EntityFrameworkCore;
+
 using Npgsql;
 
 using static LearnHub.Catalog.Infrastructure.Tests.Persistence.CatalogRows;
@@ -5,7 +9,8 @@ using static LearnHub.Catalog.Infrastructure.Tests.Persistence.CatalogRows;
 namespace LearnHub.Catalog.Infrastructure.Tests.Persistence;
 
 /// <summary>
-/// The window-function queries (course outline, longest courses per instructor), each on a database of its own.
+/// The window-function queries (course outline, longest courses per instructor), which <see cref="CourseQueries"/> runs
+/// as SQL through EF Core, each on a database of its own.
 /// </summary>
 public sealed class CatalogWindowQueriesTests(CatalogDatabaseFixture database) : IAsyncLifetime
 {
@@ -28,9 +33,9 @@ public sealed class CatalogWindowQueriesTests(CatalogDatabaseFixture database) :
 
         Assert.Equal(
             [
-                new OutlineLesson(1, "Introduction", 300, 0, 16.7m, 1800),
-                new OutlineLesson(2, "Constraints", 600, 300, 33.3m, 1800),
-                new OutlineLesson(3, "Normalization", 900, 900, 50.0m, 1800),
+                new OutlineRow(1, "Introduction", 300, 0, 16.7m, 1800),
+                new OutlineRow(2, "Constraints", 600, 300, 33.3m, 1800),
+                new OutlineRow(3, "Normalization", 900, 900, 50.0m, 1800),
             ],
             outline);
     }
@@ -41,7 +46,7 @@ public sealed class CatalogWindowQueriesTests(CatalogDatabaseFixture database) :
         var courseId = await InsertCourseAsync(_db, status: "published");
         await InsertLessonAsync(_db, courseId, position: 1, title: "Layers", durationSeconds: 480);
 
-        Assert.Equal([new OutlineLesson(1, "Layers", 480, 0, 100.0m, 480)], await OutlineAsync(courseId));
+        Assert.Equal([new OutlineRow(1, "Layers", 480, 0, 100.0m, 480)], await OutlineAsync(courseId));
     }
 
     [Fact]
@@ -83,7 +88,7 @@ public sealed class CatalogWindowQueriesTests(CatalogDatabaseFixture database) :
         var otherId = await InsertCourseAsync(_db, status: "published");
         await InsertLessonAsync(_db, otherId, position: 1, title: "Other", durationSeconds: 600);
 
-        Assert.Equal([new OutlineLesson(1, "Mine", 300, 0, 100.0m, 300)], await OutlineAsync(courseId));
+        Assert.Equal([new OutlineRow(1, "Mine", 300, 0, 100.0m, 300)], await OutlineAsync(courseId));
     }
 
     [Fact]
@@ -135,47 +140,45 @@ public sealed class CatalogWindowQueriesTests(CatalogDatabaseFixture database) :
         }
     }
 
-    private async Task<List<OutlineLesson>> OutlineAsync(Guid courseId)
+    private async Task<List<OutlineRow>> OutlineAsync(Guid courseId)
     {
-        await using var command = _db.CreateCommand(await CatalogQueryFiles.ReadAsync("get_published_course_outline.sql"));
-        command.Parameters.AddWithValue(courseId);
+        await using var context = NewContext();
+        var outline = await new CourseQueries(context)
+            .GetPublishedOutlineAsync(courseId, TestContext.Current.CancellationToken);
 
-        await using var row = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
-        var lessons = new List<OutlineLesson>();
-        while (await row.ReadAsync(TestContext.Current.CancellationToken))
-        {
-            lessons.Add(new OutlineLesson(
-                Position: row.GetInt32(row.GetOrdinal("position")),
-                Title: row.GetString(row.GetOrdinal("title")),
-                DurationSeconds: row.GetInt32(row.GetOrdinal("duration_seconds")),
-                StartOffsetSeconds: row.GetInt64(row.GetOrdinal("start_offset_seconds")),
-                PercentageOfCourse: row.GetDecimal(row.GetOrdinal("percentage_of_course")),
-                TotalDurationSeconds: row.GetInt64(row.GetOrdinal("total_duration_seconds"))));
-        }
-
-        return lessons;
+        return
+        [
+            .. outline.Select(lesson => new OutlineRow(
+                lesson.Position,
+                lesson.Title,
+                lesson.DurationSeconds,
+                lesson.StartOffsetSeconds,
+                lesson.PercentageOfCourse,
+                lesson.TotalDurationSeconds)),
+        ];
     }
 
     private async Task<List<RankedCourse>> RankingAsync()
     {
-        await using var command = _db.CreateCommand(
-            await CatalogQueryFiles.ReadAsync("list_longest_published_courses_per_instructor.sql"));
+        await using var context = NewContext();
+        var ranking = await new CourseQueries(context).ListLongestPublishedAsync(TestContext.Current.CancellationToken);
 
-        await using var row = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
-        var courses = new List<RankedCourse>();
-        while (await row.ReadAsync(TestContext.Current.CancellationToken))
-        {
-            courses.Add(new RankedCourse(
-                InstructorId: row.GetGuid(row.GetOrdinal("instructor_id")),
-                Slug: row.GetString(row.GetOrdinal("slug")),
-                TotalDurationSeconds: row.GetInt64(row.GetOrdinal("total_duration_seconds")),
-                Rank: row.GetInt64(row.GetOrdinal("rank"))));
-        }
-
-        return courses;
+        return
+        [
+            .. ranking.Select(course => new RankedCourse(
+                course.InstructorId,
+                course.Slug,
+                course.TotalDurationSeconds,
+                course.Rank)),
+        ];
     }
 
-    private sealed record OutlineLesson(
+    private CatalogDbContext NewContext() => new(
+        new DbContextOptionsBuilder<CatalogDbContext>()
+            .UseNpgsql(_db)
+            .Options);
+
+    private sealed record OutlineRow(
         int Position,
         string Title,
         int DurationSeconds,

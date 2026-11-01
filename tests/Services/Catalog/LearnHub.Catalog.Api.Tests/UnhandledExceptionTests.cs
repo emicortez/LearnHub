@@ -57,5 +57,13 @@ public sealed class UnhandledExceptionTests(CatalogApiFactory factory)
             Guid instructorId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task<IReadOnlyList<OutlineLesson>> GetPublishedOutlineAsync(
+            Guid courseId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<LongestCourse>> ListLongestPublishedAsync(CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }
