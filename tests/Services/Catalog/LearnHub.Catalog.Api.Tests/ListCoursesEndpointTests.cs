@@ -67,6 +67,45 @@ public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
         Assert.NotNull(page.NextCursor);
     }
 
+    [Theory]
+    [InlineData("/courses?limit=abc")]
+    [InlineData("/courses?limit=1&limit=2")]
+    [InlineData("/courses?limit=99999999999")]
+    public async Task A_limit_that_is_not_one_number_returns_a_400_problem(string path)
+    {
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync(path, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task A_body_that_is_not_json_returns_a_400_problem()
+    {
+        var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
+        using var body = new StringContent("{ not json", System.Text.Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync("/courses", body, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task An_empty_cursor_is_the_first_page_with_or_without_a_token()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var withToken = factory.CreateAuthenticatedClient(Guid.NewGuid());
+
+        var anonymous = await factory.CreateClient().GetAsync("/courses?cursor=", cancellationToken);
+        var signedIn = await withToken.GetAsync("/courses?cursor=", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, anonymous.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, signedIn.StatusCode);
+    }
+
     [Fact]
     public async Task An_invalid_cursor_returns_400_with_the_error_code()
     {
