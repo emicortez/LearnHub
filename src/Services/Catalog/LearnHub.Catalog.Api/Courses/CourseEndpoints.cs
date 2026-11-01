@@ -91,7 +91,8 @@ public static class CourseEndpoints
         CancellationToken cancellationToken)
     {
         Guid? after = null;
-        if (request.Cursor is not null)
+        // Empty is no cursor: the output cache cannot tell the two apart, so a token must not change the answer.
+        if (!string.IsNullOrEmpty(request.Cursor))
         {
             if (!CourseCursor.TryDecode(request.Cursor, out after))
             {

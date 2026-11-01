@@ -19,6 +19,22 @@ public sealed partial class UnhandledExceptionHandler(
     {
         ArgumentNullException.ThrowIfNull(httpContext);
 
+        // The framework's way to reject a query string or body it cannot bind. The client's mistake, so a client error.
+        if (exception is BadHttpRequestException badRequest)
+        {
+            httpContext.Response.StatusCode = badRequest.StatusCode;
+
+            return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+            {
+                HttpContext = httpContext,
+                ProblemDetails = new ProblemDetails
+                {
+                    Status = badRequest.StatusCode,
+                    Title = "The request could not be read.",
+                },
+            });
+        }
+
         LogUnhandledException(logger, exception, httpContext.Request.Method, httpContext.Request.Path);
 
         httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
