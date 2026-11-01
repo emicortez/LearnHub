@@ -120,6 +120,16 @@ public sealed class CourseVisibilityTests(CatalogApiFactory factory) : IClassFix
         Assert.Equal(HttpStatusCode.NotFound, (await GetAsync(forged, id)).StatusCode);
     }
 
+    [Fact]
+    public async Task An_app_only_token_with_the_owners_id_reads_like_no_token()
+    {
+        var instructor = Guid.NewGuid();
+        var id = await CreateDraftAsync(factory.CreateAuthenticatedClient(instructor));
+        var appOnly = factory.CreateClientWithToken(TestTokens.For(instructor, scope: null));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await GetAsync(appOnly, id)).StatusCode);
+    }
+
     private static Task<HttpResponseMessage> GetAsync(HttpClient client, Guid id) =>
         client.GetAsync($"/courses/{id}", TestContext.Current.CancellationToken);
 

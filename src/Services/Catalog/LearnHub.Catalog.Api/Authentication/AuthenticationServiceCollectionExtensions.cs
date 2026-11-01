@@ -73,10 +73,11 @@ public static class AuthenticationServiceCollectionExtensions
     }
 
     /// <summary>
-    /// The user id of whoever signed in, or null for an anonymous request.
+    /// The user id of a person signed in, or null for anything else. As the default policy, it takes only a delegated
+    /// token: an app-only token has no scp, and acts for no user.
     /// </summary>
     public static Guid? FindUserId(this ClaimsPrincipal user) =>
-        user.TryGetUserId(out var userId) ? userId : null;
+        user.TryGetUserId(out var userId) && user.HasClaim(claim => claim.Type == ScopeClaim) ? userId : null;
 
     /// <summary>
     /// The user id of a request that passed the default policy. Throws if called on an endpoint without it.
