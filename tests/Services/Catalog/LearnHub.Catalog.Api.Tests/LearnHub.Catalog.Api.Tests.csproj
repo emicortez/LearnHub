@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\LearnHub.Catalog.Infrastructure.Tests\Persistence\CommandRecorder.cs" Link="CommandRecorder.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\..\src\Services\Catalog\LearnHub.Catalog.Api\LearnHub.Catalog.Api.csproj" />
   </ItemGroup>
 

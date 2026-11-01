@@ -6,7 +6,7 @@ namespace LearnHub.Catalog.Infrastructure.Tests.Persistence;
 
 /// <summary>
 /// Runs the versioned Catalog read queries against a database of their own, because they read whole tables.
-/// These are the results the EF Core repository must reproduce in module 6.
+/// These are the results <c>CourseQueries</c> must reproduce (<c>CourseQueriesTests</c>).
 /// </summary>
 public sealed class CatalogQueriesTests(CatalogDatabaseFixture database) : IAsyncLifetime
 {

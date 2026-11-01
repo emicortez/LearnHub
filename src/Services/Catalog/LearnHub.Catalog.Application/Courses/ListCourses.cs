@@ -25,7 +25,7 @@ public sealed record CoursePage(IReadOnlyList<CourseSummary> Items, Guid? NextAf
 /// Handles <see cref="ListCourses"/>. It asks for one row more than the limit: if that row exists,
 /// there is a next page, and the last item returned is where it starts.
 /// </summary>
-public sealed class ListCoursesHandler(ICourseRepository courses)
+public sealed class ListCoursesHandler(ICourseQueries courses)
 {
     public async Task<CoursePage> HandleAsync(ListCourses query, CancellationToken cancellationToken)
     {
@@ -35,16 +35,7 @@ public sealed class ListCoursesHandler(ICourseRepository courses)
         var rows = await courses.ListAsync(query.After, query.Limit + 1, cancellationToken).ConfigureAwait(false);
 
         var hasNextPage = rows.Count > query.Limit;
-        var items = rows
-            .Take(query.Limit)
-            .Select(course => new CourseSummary(
-                course.Id,
-                course.Title.Value,
-                course.Slug,
-                course.Price.Amount,
-                course.Price.Currency,
-                course.Status.ToString()))
-            .ToList();
+        var items = rows.Take(query.Limit).ToList();
 
         return new CoursePage(items, hasNextPage ? items[^1].Id : null);
     }

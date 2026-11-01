@@ -77,27 +77,6 @@ public sealed class CatalogUnitOfWorkTests(CatalogDatabaseFixture database) : IA
     }
 
     [Fact]
-    public async Task List_walks_every_course_in_id_order_one_page_at_a_time()
-    {
-        var cancellationToken = TestContext.Current.CancellationToken;
-        var ids = new List<Guid>();
-        foreach (var title in new[] { "First", "Second", "Third" })
-        {
-            var course = NewCourse(title);
-            await SaveAsync(course);
-            ids.Add(course.Id);
-        }
-
-        await using var context = NewContext();
-        var repository = new CourseRepository(context);
-        var firstPage = await repository.ListAsync(afterId: null, take: 2, cancellationToken);
-        var lastPage = await repository.ListAsync(firstPage[^1].Id, take: 2, cancellationToken);
-
-        Assert.Equal(ids.Order().Take(2), firstPage.Select(course => course.Id));
-        Assert.Equal(ids.Order().Skip(2), lastPage.Select(course => course.Id));
-    }
-
-    [Fact]
     public async Task Committed_events_are_dispatched_after_the_commit_and_cleared()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
