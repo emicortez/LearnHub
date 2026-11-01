@@ -53,7 +53,7 @@ Both tables are in BCNF: every determinant is a candidate key.
 
 ### Read queries
 
-The derived data is computed at read time. The versioned SQL in [`Persistence/Queries/`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Queries/) is the reference, tested in `CatalogQueriesTests`, `CatalogWindowQueriesTests` and `CatalogPaginationQueriesTests`. `CourseQueries` reproduces the listings with LINQ and `CourseQueriesTests` compares them with that SQL; the window queries have no LINQ form and stay in SQL:
+The derived data is computed at read time. The versioned SQL in [`Persistence/Queries/`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Queries/) is the reference, tested in `CatalogQueriesTests`, `CatalogWindowQueriesTests` and `CatalogPaginationQueriesTests`. `CourseQueries` reproduces the listings with LINQ and `CourseQueriesTests` compares them with that SQL; the window queries stay in SQL, since LINQ has no general way to write a window function:
 
 | Query | Returns | Order |
 |---|---|---|

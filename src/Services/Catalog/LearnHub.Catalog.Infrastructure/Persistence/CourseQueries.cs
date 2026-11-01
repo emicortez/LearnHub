@@ -11,7 +11,7 @@ namespace LearnHub.Catalog.Infrastructure.Persistence;
 /// Reads Catalog through projections: only the columns each result needs, one command each, nothing tracked.
 /// A projection returns no entities, so AsNoTracking would add nothing and AutoInclude does not apply.
 /// Title.Value and Status.ToString() run in memory on the column values, which EF Core allows only in the final Select.
-/// The window queries in Persistence/Queries have no LINQ form and stay in SQL.
+/// The window queries in Persistence/Queries stay in SQL: LINQ has no general way to write a window function.
 /// </summary>
 public sealed class CourseQueries(CatalogDbContext context) : ICourseQueries
 {
