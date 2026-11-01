@@ -201,5 +201,13 @@ public sealed class OutputCachingTests
             Guid instructorId,
             CancellationToken cancellationToken) =>
             inner.ListByInstructorAsync(instructorId, cancellationToken);
+
+        public Task<IReadOnlyList<OutlineLesson>> GetPublishedOutlineAsync(
+            Guid courseId,
+            CancellationToken cancellationToken) =>
+            inner.GetPublishedOutlineAsync(courseId, cancellationToken);
+
+        public Task<IReadOnlyList<LongestCourse>> ListLongestPublishedAsync(CancellationToken cancellationToken) =>
+            inner.ListLongestPublishedAsync(cancellationToken);
     }
 }

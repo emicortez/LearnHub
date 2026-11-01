@@ -22,9 +22,11 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("catalog")
             ?? throw new InvalidOperationException("The connection string 'catalog' is not configured.");
 
-        // Scoped by default: one context per request, shared by the repository and the unit of work below, so what
-        // the repository tracks is what the unit of work commits. A context is not thread-safe, so never a singleton.
-        services.AddDbContext<CatalogDbContext>(options => options.UseNpgsql(connectionString));
+        // Scoped: one context per request, shared by the repository and the unit of work below, so what the repository
+        // tracks is what the unit of work commits. A context is not thread-safe, so never a singleton. Pooled: a request
+        // takes a context that EF Core reset and hands it back, about 60 KB less per request. That reset only knows
+        // EF Core's own state, so CatalogDbContext must never hold per-request fields.
+        services.AddDbContextPool<CatalogDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<ICourseRepository, CourseRepository>();
         services.AddScoped<ICourseQueries, CourseQueries>();
         services.AddScoped<IUnitOfWork, CatalogUnitOfWork>();

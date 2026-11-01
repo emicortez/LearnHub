@@ -30,6 +30,16 @@ public interface ICourseQueries
     /// One instructor's courses in every status, by title then slug.
     /// </summary>
     Task<IReadOnlyList<InstructorCourse>> ListByInstructorAsync(Guid instructorId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The lessons of a published course in position order. Empty for a draft, an archived or an unknown course.
+    /// </summary>
+    Task<IReadOnlyList<OutlineLesson>> GetPublishedOutlineAsync(Guid courseId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Up to three published courses per instructor, longest first, by instructor then rank.
+    /// </summary>
+    Task<IReadOnlyList<LongestCourse>> ListLongestPublishedAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -48,6 +58,29 @@ public sealed record PublishedCourse(
 /// The last row of a catalog page. It is the whole sort key: titles repeat, so the title alone would skip courses.
 /// </summary>
 public sealed record PublishedCourseCursor(CourseTitle Title, string Slug);
+
+/// <summary>
+/// A lesson in a course outline, with the second it starts at and its share of the course.
+/// </summary>
+public sealed record OutlineLesson(
+    Guid Id,
+    int Position,
+    string Title,
+    int DurationSeconds,
+    long StartOffsetSeconds,
+    decimal PercentageOfCourse,
+    long TotalDurationSeconds);
+
+/// <summary>
+/// A course in its instructor's top three. Rank starts at 1, and the slug breaks ties.
+/// </summary>
+public sealed record LongestCourse(
+    Guid InstructorId,
+    Guid Id,
+    string Title,
+    string Slug,
+    long TotalDurationSeconds,
+    long Rank);
 
 /// <summary>
 /// A course in its instructor's list, in any status. The totals are 0 for a course without lessons.

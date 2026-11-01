@@ -53,14 +53,14 @@ Both tables are in BCNF: every determinant is a candidate key.
 
 ### Read queries
 
-The derived data is computed at read time. The versioned SQL in [`Persistence/Queries/`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Queries/) is the reference, tested in `CatalogQueriesTests`, `CatalogWindowQueriesTests` and `CatalogPaginationQueriesTests`. `CourseQueries` reproduces the listings with LINQ and `CourseQueriesTests` compares them with that SQL; the window queries stay in SQL, since LINQ has no general way to write a window function:
+The derived data is computed at read time. The versioned SQL in [`Persistence/Queries/`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/Queries/) is the reference, tested in `CatalogQueriesTests`, `CatalogWindowQueriesTests` and `CatalogPaginationQueriesTests`. `CourseQueries` reproduces the listings with LINQ and `CourseQueriesTests` compares them with that SQL; the window queries have no general LINQ form, so `CourseQueries` runs those files through `SqlQueryRaw`:
 
 | Query | Returns | Order |
 |---|---|---|
 | `list_published_courses.sql` | Published courses with `lesson_count` and `total_duration_seconds` | `title`, then `slug` |
 | `list_published_courses_first_page.sql`, `list_published_courses_next_page.sql` | The same rows one page at a time (keyset pagination): the next page starts after the previous page's last `(title, slug)` | `title`, then `slug` |
 | `list_instructor_courses.sql` | One instructor's courses in every status, with the same totals | `title`, then `slug` |
-| `get_published_course_outline.sql` | One published course's lessons with `start_offset_seconds`, `percentage_of_course` (one decimal) and the course total; empty for a draft, archived or unknown course | `position` |
+| `get_published_course_outline.sql` | One published course's lessons with their start offset, percentage of the course (one decimal) and the course total; empty for a draft, archived or unknown course | `position` |
 | `list_longest_published_courses_per_instructor.sql` | Up to three published courses per instructor by total duration, with their `rank` | `instructor_id`, then `rank` (ties broken by `slug`) |
 
 - A course without lessons is kept by the `LEFT JOIN` and gets `0` lessons and `0` seconds: `count(l.id)` ignores the missing lesson where `count(*)` would count the course row, and `coalesce` turns the `NULL` of an empty `sum` into `0`.

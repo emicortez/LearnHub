@@ -11,6 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Persistence\Queries\*.sql" LogicalName="%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\LearnHub.Catalog.Application\LearnHub.Catalog.Application.csproj" />
   </ItemGroup>
 

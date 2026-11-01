@@ -119,7 +119,8 @@ public sealed class CatalogQueryPlansTests(CatalogPlanDatabase plans) : IClassFi
     [Fact]
     public async Task Outline_reads_one_course_and_its_lessons_through_their_indexes()
     {
-        var plan = await PlanAsync("get_published_course_outline.sql", new Guid(CatalogPlanDatabase.PublishedCourseId));
+        var plan = await ProjectionPlanAsync(queries => queries.GetPublishedOutlineAsync(
+            new Guid(CatalogPlanDatabase.PublishedCourseId), TestContext.Current.CancellationToken));
 
         var lessons = Assert.Single(plan.Descendants(), node => node.IndexName == "uq_lessons_course_position");
         Assert.Contains("course_id = ", lessons.IndexCondition, StringComparison.Ordinal);
@@ -162,7 +163,20 @@ public sealed class CatalogQueryPlansTests(CatalogPlanDatabase plans) : IClassFi
         Assert.DoesNotContain(plan.Descendants(), node => node.Type == "Seq Scan");
     }
 
-    // Runs the projection, then replays under EXPLAIN the statement EF Core really sent, with its parameters.
+    [Fact]
+    public async Task Longest_courses_ranking_reads_published_courses_through_the_published_index()
+    {
+        var plan = await ProjectionPlanAsync(queries => queries.ListLongestPublishedAsync(
+            TestContext.Current.CancellationToken));
+
+        Assert.Contains(plan.Descendants(), node => node.Type == "WindowAgg");
+        Assert.Contains(plan.Descendants(), node => node.IndexName == "ix_courses_published_title_slug");
+        Assert.DoesNotContain(
+            plan.Descendants(),
+            node => node.Type == "Seq Scan" && node.RelationName == "courses");
+    }
+
+    // Runs the query, then replays under EXPLAIN the statement EF Core really sent, with its parameters.
     private async Task<PlanNode> ProjectionPlanAsync(Func<CourseQueries, Task> read)
     {
         var recorder = new CommandRecorder();
