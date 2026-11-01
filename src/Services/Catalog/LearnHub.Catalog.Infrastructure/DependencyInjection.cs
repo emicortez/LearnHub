@@ -26,7 +26,14 @@ public static class DependencyInjection
         // tracks is what the unit of work commits. A context is not thread-safe, so never a singleton. Pooled: a request
         // takes a context that EF Core reset and hands it back, about 60 KB less per request. That reset only knows
         // EF Core's own state, so CatalogDbContext must never hold per-request fields.
-        services.AddDbContextPool<CatalogDbContext>(options => options.UseNpgsql(connectionString));
+        // Each retry repeats one query or one SaveChanges, never the whole handler. Few and short: a request should fail
+        // soon when the database is really down, and the default of 6 retries could hold it for over a minute.
+        services.AddDbContextPool<CatalogDbContext>(options => options.UseNpgsql(
+            connectionString,
+            npgsql => npgsql.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(2),
+                errorCodesToAdd: null)));
         services.AddScoped<ICourseRepository, CourseRepository>();
         services.AddScoped<ICourseQueries, CourseQueries>();
         services.AddScoped<IUnitOfWork, CatalogUnitOfWork>();
