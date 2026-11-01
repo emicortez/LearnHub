@@ -24,14 +24,16 @@ public static class CourseETag
 
     /// <summary>
     /// The version a single strong tag names, or null for anything that can never match: a weak tag, which
-    /// <c>If-Match</c> rejects by definition, a list, or a value this API did not issue.
+    /// <c>If-Match</c> rejects by definition, a list, or a value this API never issues.
     /// </summary>
     public static uint? ParseVersion(string? ifMatch)
     {
         var tag = ifMatch?.Trim();
 
+        // Formatted back, because tags compare as opaque strings: "07" is not the tag "7".
         return tag is ['"', .. var version, '"']
             && uint.TryParse(version, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
+            && Format(parsed) == tag
                 ? parsed
                 : null;
     }

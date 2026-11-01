@@ -103,6 +103,18 @@ public sealed class CourseConcurrencyEndpointTests(CatalogApiFactory factory) : 
     }
 
     [Fact]
+    public async Task Publish_with_another_spelling_of_the_current_etag_returns_412()
+    {
+        var id = await CreateCourseAsync(withLesson: true);
+        var etag = await GetETagAsync(id);
+
+        // Entity tags compare as opaque strings, so this is a tag the API never issued.
+        var response = await PublishAsync(id, etag.Insert(1, "0"));
+
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+    }
+
+    [Fact]
     public async Task A_current_etag_still_gets_the_409_of_a_business_rule()
     {
         var id = await CreateCourseAsync();

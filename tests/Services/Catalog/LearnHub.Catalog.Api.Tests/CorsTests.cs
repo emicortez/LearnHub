@@ -136,6 +136,30 @@ public sealed class CorsTests(CatalogApiFactory factory)
     }
 
     [Fact]
+    public async Task The_preflight_lets_a_page_send_if_match_to_publish()
+    {
+        var client = CreateHost().CreateClient();
+
+        var response = await PreflightAsync(client, FrontendOrigin, "POST", "authorization,if-match");
+
+        Assert.Contains("If-Match", ListedValues(response, "Access-Control-Allow-Headers"), StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task The_page_can_read_the_etag_of_a_course()
+    {
+        var host = CreateHost();
+        var created = await host.CreateAuthenticatedClient(Guid.NewGuid())
+            .PostAsJsonAsync("/courses", new { title = "CORS ETag", price = 10m, currency = "USD" }, TestContext.Current.CancellationToken);
+        var client = host.CreateClient();
+
+        var response = await SendAsync(client, HttpMethod.Get, created.Headers.Location!.AbsolutePath, FrontendOrigin);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("ETag", ListedValues(response, "Access-Control-Expose-Headers"), StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task The_page_can_read_the_location_of_a_created_course()
     {
         var client = CreateHost().CreateAuthenticatedClient(Guid.NewGuid());
