@@ -3,6 +3,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
+using LearnHub.Catalog.Api.RateLimiting;
+
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Options;
@@ -81,13 +83,15 @@ public sealed class RateLimitingTests
     }
 
     [Fact]
-    public async Task Invalid_write_limit_fails_at_startup()
-    {
-        await using var factory = new CatalogApiFactory();
-        var invalid = WithWriteLimit(factory, tokenLimit: 0);
-
-        Assert.Throws<OptionsValidationException>(() => invalid.CreateClient());
-    }
+    public void Invalid_write_limit_fails_at_startup() =>
+        Assert.Throws<OptionsValidationException>(() => StartupValidation.Run(
+            (services, configuration) => services.AddCatalogRateLimiting(configuration),
+            new()
+            {
+                ["RateLimiting:Writes:TokenLimit"] = "0",
+                ["RateLimiting:Writes:TokensPerPeriod"] = "1",
+                ["RateLimiting:Writes:ReplenishmentPeriod"] = "01:00:00",
+            }));
 
     // A replenishment period far longer than the test, so spent tokens never come back mid-test.
     private static WebApplicationFactory<Program> WithWriteLimit(CatalogApiFactory factory, int tokenLimit) =>
