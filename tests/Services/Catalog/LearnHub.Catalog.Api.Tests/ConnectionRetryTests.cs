@@ -25,6 +25,8 @@ namespace LearnHub.Catalog.Api.Tests;
 /// </summary>
 public sealed class ConnectionRetryTests : IAsyncDisposable
 {
+    private static readonly Guid InstructorId = Guid.NewGuid();
+
     private readonly CommandRecorder _recorder = new();
     private readonly WriteThatLosesItsAnswer _lostCommit = new();
 
@@ -181,14 +183,14 @@ public sealed class ConnectionRetryTests : IAsyncDisposable
     }
 
     private static Course NewCourse(string title) =>
-        Course.Create(Guid.NewGuid(), CourseTitle.Create(title).Value, Money.Create(25m, "USD").Value);
+        Course.Create(InstructorId, CourseTitle.Create(title).Value, Money.Create(25m, "USD").Value);
 
     private async Task<CourseDetails?> GetAsync(Guid id)
     {
         await using var scope = _services.CreateAsyncScope();
 
         return await scope.ServiceProvider.GetRequiredService<ICourseQueries>()
-            .GetAsync(id, TestContext.Current.CancellationToken);
+            .GetAsync(id, InstructorId, TestContext.Current.CancellationToken);
     }
 
     private async Task<Result> AddAsync(Course course)

@@ -28,8 +28,8 @@ public sealed class CourseQueries(CatalogDbContext context) : ICourseQueries
     private static readonly string LongestCoursesSql =
         QueryFile.Read("list_longest_published_courses_per_instructor.sql");
 
-    public Task<CourseDetails?> GetAsync(Guid id, CancellationToken cancellationToken) =>
-        context.Courses
+    public Task<CourseDetails?> GetAsync(Guid id, Guid? viewerId, CancellationToken cancellationToken) =>
+        VisibleTo(viewerId)
             .Where(course => course.Id == id)
             .Select(course => new CourseDetails(
                 course.Id,
@@ -43,10 +43,11 @@ public sealed class CourseQueries(CatalogDbContext context) : ICourseQueries
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<IReadOnlyList<CourseSummary>> ListAsync(
+        Guid? viewerId,
         Guid? afterId,
         int take,
         CancellationToken cancellationToken) =>
-        await context.Courses
+        await VisibleTo(viewerId)
             .Where(course => afterId == null || course.Id > afterId)
             .OrderBy(course => course.Id)
             .Take(take)
@@ -124,4 +125,7 @@ public sealed class CourseQueries(CatalogDbContext context) : ICourseQueries
             .SqlQueryRaw<LongestCourse>(LongestCoursesSql)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+    private IQueryable<Course> VisibleTo(Guid? viewerId) =>
+        context.Courses.Where(course => course.Status == CourseStatus.Published || course.InstructorId == viewerId);
 }

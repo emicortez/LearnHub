@@ -1,5 +1,11 @@
 using System.Net;
 
+using LearnHub.Catalog.Application;
+using LearnHub.Catalog.Application.Courses;
+
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace LearnHub.Catalog.Api.Tests;
 
 internal static class CoursePublishing
@@ -21,5 +27,25 @@ internal static class CoursePublishing
         request.Headers.TryAddWithoutValidation("If-Match", etag);
 
         return await client.SendAsync(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Makes a draft public, for tests about what anyone can read. The API cannot add lessons yet, so the lesson is
+    /// saved directly; the publish goes through the API.
+    /// </summary>
+    public static async Task PublishWithLessonAsync(this WebApplicationFactory<Program> host, HttpClient owner, Guid courseId)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using (var scope = host.Services.CreateAsyncScope())
+        {
+            var course = await scope.ServiceProvider.GetRequiredService<ICourseRepository>()
+                .GetAsync(courseId, cancellationToken);
+            Assert.True(course!.AddLesson("Introduction", TimeSpan.FromMinutes(5)).IsSuccess);
+            var saved = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(cancellationToken);
+            Assert.True(saved.IsSuccess);
+        }
+
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.PublishAsync(courseId)).StatusCode);
     }
 }

@@ -126,6 +126,15 @@ public sealed class CourseViewersHubTests : IAsyncDisposable
         Assert.Equal((courseId, 1), await first.NextAsync());
     }
 
+    [Fact]
+    public async Task An_anonymous_viewer_cannot_watch_a_draft()
+    {
+        var draft = await CreateDraftAsync(_factory.CreateAuthenticatedClient(Guid.NewGuid()));
+        var viewer = await ConnectAsync();
+
+        await Assert.ThrowsAsync<HubException>(() => viewer.WatchAsync(draft));
+    }
+
     public async ValueTask DisposeAsync()
     {
         foreach (var viewer in _viewers)
@@ -139,6 +148,14 @@ public sealed class CourseViewersHubTests : IAsyncDisposable
     private async Task<Guid> CreateCourseAsync()
     {
         var client = _factory.CreateAuthenticatedClient(Guid.NewGuid());
+        var id = await CreateDraftAsync(client);
+        await _factory.PublishWithLessonAsync(client, id);
+
+        return id;
+    }
+
+    private static async Task<Guid> CreateDraftAsync(HttpClient client)
+    {
         var request = new { title = $"Real-time Apps {Guid.NewGuid():N}", price = 20m, currency = "USD" };
         var response = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
         response.EnsureSuccessStatusCode();

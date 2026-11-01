@@ -41,10 +41,14 @@ public sealed class UnhandledExceptionTests(CatalogApiFactory factory)
 
     private sealed class ThrowingCourseQueries : ICourseQueries
     {
-        public Task<CourseDetails?> GetAsync(Guid id, CancellationToken cancellationToken) =>
+        public Task<CourseDetails?> GetAsync(Guid id, Guid? viewerId, CancellationToken cancellationToken) =>
             throw new InvalidOperationException(SecretMessage);
 
-        public Task<IReadOnlyList<CourseSummary>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<CourseSummary>> ListAsync(
+            Guid? viewerId,
+            Guid? afterId,
+            int take,
+            CancellationToken cancellationToken) =>
             throw new InvalidOperationException(SecretMessage);
 
         public Task<IReadOnlyList<PublishedCourse>> ListPublishedAsync(

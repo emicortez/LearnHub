@@ -26,12 +26,15 @@ public sealed class CourseConcurrencyEndpointTests(CatalogApiFactory factory) : 
     [Fact]
     public async Task A_cached_read_carries_the_etag_of_the_body_it_serves()
     {
-        var id = await CreateCourseAsync();
+        var id = await CreateCourseAsync(withLesson: true);
+        Assert.Equal(HttpStatusCode.NoContent, (await PublishAsync(id, await GetETagAsync(id))).StatusCode);
+        using var anonymous = factory.CreateClient();
 
-        var fresh = await GetETagAsync(id);
-        var cached = await GetETagAsync(id);
+        var fresh = await anonymous.GetAsync($"/courses/{id}", TestContext.Current.CancellationToken);
+        var cached = await anonymous.GetAsync($"/courses/{id}", TestContext.Current.CancellationToken);
 
-        Assert.Equal(fresh, cached);
+        Assert.Equal(await GetETagAsync(id), Assert.Single(fresh.Headers.GetValues("ETag")));
+        Assert.Equal(fresh.Headers.ETag, cached.Headers.ETag);
     }
 
     [Fact]
@@ -181,7 +184,8 @@ public sealed class CourseConcurrencyEndpointTests(CatalogApiFactory factory) : 
 
     private async Task<string> GetETagAsync(Guid id)
     {
-        using var client = factory.CreateClient();
+        // Authenticated, because a draft is visible only to its owner.
+        using var client = factory.CreateAuthenticatedClient(_instructor);
         var response = await client.GetAsync($"/courses/{id}", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
