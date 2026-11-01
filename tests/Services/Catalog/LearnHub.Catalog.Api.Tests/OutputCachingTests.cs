@@ -4,7 +4,6 @@ using System.Text.Json;
 
 using LearnHub.Catalog.Application;
 using LearnHub.Catalog.Application.Courses;
-using LearnHub.Catalog.Domain.Courses;
 using LearnHub.Catalog.Infrastructure.Persistence;
 
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -114,8 +113,8 @@ public sealed class OutputCachingTests
         public CachingHost()
         {
             _host = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-                services.Replace(ServiceDescriptor.Scoped<ICourseRepository>(provider =>
-                    new CountingCourseRepository(ActivatorUtilities.CreateInstance<CourseRepository>(provider), Reads)))));
+                services.Replace(ServiceDescriptor.Scoped<ICourseQueries>(provider =>
+                    new CountingCourseQueries(ActivatorUtilities.CreateInstance<CourseQueries>(provider), Reads)))));
             Client = _host.CreateClient();
             Writer = _host.CreateAuthenticatedClient(Guid.NewGuid());
         }
@@ -177,23 +176,30 @@ public sealed class OutputCachingTests
         public void Add() => Interlocked.Increment(ref _count);
     }
 
-    // Counts reads that reach the repository; a read served from the output cache never gets here.
-    private sealed class CountingCourseRepository(ICourseRepository inner, ReadCounter reads) : ICourseRepository
+    // Counts reads that reach the database; a read served from the output cache never gets here.
+    private sealed class CountingCourseQueries(ICourseQueries inner, ReadCounter reads) : ICourseQueries
     {
-        public Task<Course?> GetAsync(Guid id, CancellationToken cancellationToken)
+        public Task<CourseDetails?> GetAsync(Guid id, CancellationToken cancellationToken)
         {
             reads.Add();
             return inner.GetAsync(id, cancellationToken);
         }
 
-        public Task<IReadOnlyList<Course>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<CourseSummary>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken)
         {
             reads.Add();
             return inner.ListAsync(afterId, take, cancellationToken);
         }
 
-        public void Add(Course course) => inner.Add(course);
+        public Task<IReadOnlyList<PublishedCourse>> ListPublishedAsync(
+            PublishedCourseCursor? after,
+            int take,
+            CancellationToken cancellationToken) =>
+            inner.ListPublishedAsync(after, take, cancellationToken);
 
-        public uint GetVersion(Course course) => inner.GetVersion(course);
+        public Task<IReadOnlyList<InstructorCourse>> ListByInstructorAsync(
+            Guid instructorId,
+            CancellationToken cancellationToken) =>
+            inner.ListByInstructorAsync(instructorId, cancellationToken);
     }
 }

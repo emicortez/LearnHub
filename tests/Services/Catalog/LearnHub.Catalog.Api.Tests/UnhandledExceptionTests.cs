@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 
 using LearnHub.Catalog.Application.Courses;
-using LearnHub.Catalog.Domain.Courses;
 
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -25,7 +24,7 @@ public sealed class UnhandledExceptionTests(CatalogApiFactory factory)
             .WithWebHostBuilder(builder => builder
                 .UseEnvironment("Production")
                 .ConfigureTestServices(services =>
-                    services.Replace(ServiceDescriptor.Singleton<ICourseRepository, ThrowingCourseRepository>())))
+                    services.Replace(ServiceDescriptor.Singleton<ICourseQueries, ThrowingCourseQueries>())))
             .CreateClient();
 
         var response = await client.GetAsync($"/courses/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
@@ -40,16 +39,23 @@ public sealed class UnhandledExceptionTests(CatalogApiFactory factory)
         Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
     }
 
-    private sealed class ThrowingCourseRepository : ICourseRepository
+    private sealed class ThrowingCourseQueries : ICourseQueries
     {
-        public Task<Course?> GetAsync(Guid id, CancellationToken cancellationToken) =>
+        public Task<CourseDetails?> GetAsync(Guid id, CancellationToken cancellationToken) =>
             throw new InvalidOperationException(SecretMessage);
 
-        public Task<IReadOnlyList<Course>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<CourseSummary>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken) =>
             throw new InvalidOperationException(SecretMessage);
 
-        public void Add(Course course) => throw new InvalidOperationException(SecretMessage);
+        public Task<IReadOnlyList<PublishedCourse>> ListPublishedAsync(
+            PublishedCourseCursor? after,
+            int take,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
 
-        public uint GetVersion(Course course) => throw new NotSupportedException();
+        public Task<IReadOnlyList<InstructorCourse>> ListByInstructorAsync(
+            Guid instructorId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

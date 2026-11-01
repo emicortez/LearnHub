@@ -1,5 +1,11 @@
 using System.Text.Json;
 
+using LearnHub.Catalog.Application.Courses;
+using LearnHub.Catalog.Domain.Courses;
+using LearnHub.Catalog.Infrastructure.Persistence;
+
+using Microsoft.EntityFrameworkCore;
+
 using Npgsql;
 
 namespace LearnHub.Catalog.Infrastructure.Tests.Persistence;
@@ -119,6 +125,60 @@ public sealed class CatalogQueryPlansTests(CatalogPlanDatabase plans) : IClassFi
         Assert.Contains("course_id = ", lessons.IndexCondition, StringComparison.Ordinal);
         Assert.Contains(plan.Descendants(), node => node.IndexName == "pk_courses");
         Assert.DoesNotContain(plan.Descendants(), node => node.Type == "Seq Scan");
+    }
+
+    [Fact]
+    public async Task Projected_first_page_walks_the_published_index_in_order_and_looks_lessons_up_by_course()
+    {
+        var plan = await ProjectionPlanAsync(queries => queries.ListPublishedAsync(
+            after: null, PageSize, TestContext.Current.CancellationToken));
+
+        Assert.Contains(plan.Descendants(), node => node.IndexName == "ix_courses_published_title_slug");
+        Assert.Contains(plan.Descendants(), node => node.IndexName == "uq_lessons_course_position");
+        Assert.DoesNotContain(plan.Descendants(), node => node.Type is "Seq Scan" or "Sort");
+    }
+
+    [Fact]
+    public async Task Projected_next_page_starts_at_the_cursor_inside_the_published_index()
+    {
+        var cursor = new PublishedCourseCursor(CourseTitle.Create("Course 02500").Value, "course-2500");
+
+        var plan = await ProjectionPlanAsync(queries => queries.ListPublishedAsync(
+            cursor, PageSize, TestContext.Current.CancellationToken));
+
+        var courses = Assert.Single(plan.Descendants(), node => node.IndexName == "ix_courses_published_title_slug");
+        Assert.Contains("ROW(title, slug) > ROW(", courses.IndexCondition, StringComparison.Ordinal);
+        Assert.DoesNotContain(plan.Descendants(), node => node.Type is "Seq Scan" or "Sort");
+    }
+
+    [Fact]
+    public async Task Projected_instructor_listing_finds_the_instructors_courses_through_its_index()
+    {
+        var plan = await ProjectionPlanAsync(queries => queries.ListByInstructorAsync(
+            new Guid(CatalogPlanDatabase.InstructorId), TestContext.Current.CancellationToken));
+
+        var courses = Assert.Single(plan.Descendants(), node => node.IndexName == "ix_courses_instructor_title_slug");
+        Assert.Contains("instructor_id = ", courses.IndexCondition, StringComparison.Ordinal);
+        Assert.DoesNotContain(plan.Descendants(), node => node.Type == "Seq Scan");
+    }
+
+    // Runs the projection, then replays under EXPLAIN the statement EF Core really sent, with its parameters.
+    private async Task<PlanNode> ProjectionPlanAsync(Func<CourseQueries, Task> read)
+    {
+        var recorder = new CommandRecorder();
+        await using var context = new CatalogDbContext(
+            new DbContextOptionsBuilder<CatalogDbContext>()
+                .UseNpgsql(plans.DataSource)
+                .AddInterceptors(recorder)
+                .Options);
+
+        await read(new CourseQueries(context));
+
+        var recorded = Assert.Single(recorder.Commands);
+        await using var command = plans.DataSource.CreateCommand("EXPLAIN (FORMAT JSON) " + recorded.Text);
+        command.Parameters.AddRange(recorded.Parameters.ToArray());
+
+        return PlanNode.Parse((string)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!);
     }
 
     private async Task<PlanNode> PlanAsync(string file, params object[] parameters)

@@ -19,27 +19,14 @@ public sealed record CourseDetails(
     uint Version);
 
 /// <summary>
-/// Handles <see cref="GetCourse"/>. The query reads through the repository until module 6,
-/// when it switches to a DbContext projection that skips the aggregate (ADR 0004).
+/// Handles <see cref="GetCourse"/> with a projection that skips the aggregate (ADR 0004).
 /// </summary>
-public sealed class GetCourseHandler(ICourseRepository courses)
+public sealed class GetCourseHandler(ICourseQueries courses)
 {
-    public async Task<CourseDetails?> HandleAsync(GetCourse query, CancellationToken cancellationToken)
+    public Task<CourseDetails?> HandleAsync(GetCourse query, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var course = await courses.GetAsync(query.CourseId, cancellationToken).ConfigureAwait(false);
-
-        return course is null
-            ? null
-            : new CourseDetails(
-                course.Id,
-                course.InstructorId,
-                course.Title.Value,
-                course.Slug,
-                course.Price.Amount,
-                course.Price.Currency,
-                course.Status.ToString(),
-                courses.GetVersion(course));
+        return courses.GetAsync(query.CourseId, cancellationToken);
     }
 }

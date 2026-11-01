@@ -15,14 +15,6 @@ public sealed class CourseRepository(CatalogDbContext context) : ICourseReposito
     public Task<Course?> GetAsync(Guid id, CancellationToken cancellationToken) =>
         context.CoursesWithOrderedLessons.SingleOrDefaultAsync(course => course.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<Course>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken) =>
-        await context.CoursesWithOrderedLessons
-            .Where(course => afterId == null || course.Id > afterId)
-            .OrderBy(course => course.Id)
-            .Take(take)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
     public void Add(Course course) => context.Courses.Add(course);
 
     public uint GetVersion(Course course) =>

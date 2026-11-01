@@ -26,6 +26,7 @@ public static class DependencyInjection
         // the repository tracks is what the unit of work commits. A context is not thread-safe, so never a singleton.
         services.AddDbContext<CatalogDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<ICourseRepository, CourseRepository>();
+        services.AddScoped<ICourseQueries, CourseQueries>();
         services.AddScoped<IUnitOfWork, CatalogUnitOfWork>();
         services.AddSingleton<IDomainEventDispatcher, LoggingDomainEventDispatcher>();
 

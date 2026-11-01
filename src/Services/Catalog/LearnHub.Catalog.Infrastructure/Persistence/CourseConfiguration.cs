@@ -99,7 +99,8 @@ internal sealed class CourseConfiguration : IEntityTypeConfiguration<Course>
             .HasConstraintName("fk_lessons_course")
             .OnDelete(DeleteBehavior.Cascade);
 
-        // EF Core fills the private list. Every query loads it, because the aggregate's rules need all its lessons.
+        // EF Core fills the private list. Every query for a Course loads it, because the aggregate's rules need all its
+        // lessons. A projection returns no Course, so it does not.
         builder.Navigation(course => course.Lessons)
             .HasField("_lessons")
             .UsePropertyAccessMode(PropertyAccessMode.Field)
