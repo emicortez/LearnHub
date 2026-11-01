@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 
+using LearnHub.Catalog.Api.Cors;
+
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Options;
@@ -136,6 +138,30 @@ public sealed class CorsTests(CatalogApiFactory factory)
     }
 
     [Fact]
+    public async Task The_preflight_lets_a_page_send_if_match_to_publish()
+    {
+        var client = CreateHost().CreateClient();
+
+        var response = await PreflightAsync(client, FrontendOrigin, "POST", "authorization,if-match");
+
+        Assert.Contains("If-Match", ListedValues(response, "Access-Control-Allow-Headers"), StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task The_page_can_read_the_etag_of_a_course()
+    {
+        var host = CreateHost();
+        var created = await host.CreateAuthenticatedClient(Guid.NewGuid())
+            .PostAsJsonAsync("/courses", new { title = "CORS ETag", price = 10m, currency = "USD" }, TestContext.Current.CancellationToken);
+        var client = host.CreateClient();
+
+        var response = await SendAsync(client, HttpMethod.Get, created.Headers.Location!.AbsolutePath, FrontendOrigin);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("ETag", ListedValues(response, "Access-Control-Expose-Headers"), StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task The_page_can_read_the_location_of_a_created_course()
     {
         var client = CreateHost().CreateAuthenticatedClient(Guid.NewGuid());
@@ -173,9 +199,9 @@ public sealed class CorsTests(CatalogApiFactory factory)
     [InlineData("")]
     public void An_origin_that_is_not_exact_stops_the_service_at_startup(string origin)
     {
-        var host = factory.WithWebHostBuilder(builder => builder.UseSetting("Cors:AllowedOrigins:0", origin));
-
-        var exception = Assert.Throws<OptionsValidationException>(() => host.CreateClient());
+        var exception = Assert.Throws<OptionsValidationException>(() => StartupValidation.Run(
+            (services, configuration) => services.AddCatalogCors(configuration),
+            new() { ["Cors:AllowedOrigins:0"] = origin }));
 
         Assert.Contains("Cors:AllowedOrigins", exception.Message, StringComparison.Ordinal);
     }

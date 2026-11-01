@@ -31,6 +31,8 @@ public sealed class CourseErrorsTests
             [CourseErrors.NotDraft,
                 CourseErrors.SlugTaken, CourseErrors.NoLessons, CourseErrors.NotPublished, CourseErrors.Archived],
             error => Assert.Equal(ErrorType.Conflict, error.Type));
+
+        Assert.Equal(ErrorType.PreconditionFailed, CourseErrors.VersionMismatch.Type);
     }
 
     [Fact]

@@ -10,6 +10,8 @@ internal sealed class CourseConfiguration : IEntityTypeConfiguration<Course>
 {
     public const string UniqueSlug = "uq_courses_slug";
 
+    public const string Version = nameof(Version);
+
     public void Configure(EntityTypeBuilder<Course> builder)
     {
         // The domain validates first to return useful errors. These constraints keep the stored data valid whatever
@@ -79,6 +81,12 @@ internal sealed class CourseConfiguration : IEntityTypeConfiguration<Course>
             .HasConversion(new CourseStatusConverter())
             .HasDefaultValueSql("'draft'")
             .ValueGeneratedNever();
+
+        // Mapped to PostgreSQL's xmin, which changes with every UPDATE of the row, so no column is added and no write
+        // can forget to bump it. EF Core adds it to the UPDATE's WHERE: a row changed by someone else matches no row.
+        // It covers the courses row only, so adding a lesson does not change it.
+        builder.Property<uint>(Version)
+            .IsRowVersion();
 
         // Dispatched after saving, never stored.
         builder.Ignore(course => course.DomainEvents);

@@ -101,8 +101,9 @@ Every index is justified by a query. The primary keys and `UNIQUE` constraints c
 | Operation | Risk | Protection |
 |---|---|---|
 | `Course.AddLesson` | Two requests compute the same next position | `uq_lessons_course_position`: the second insert waits for the first and fails with `23505` when it commits; report a conflict or recompute |
-| `Course.ChangePrice` | Lost update: the new price is an absolute value, so `price = price + n` does not apply | Optimistic version check, added with the module 4 ETag |
-| `Course.Publish`, `Course.Archive` | The decision is taken on a loaded aggregate that may be stale | Same version check |
+| `Course.ChangePrice` | Lost update: the new price is an absolute value, so `price = price + n` does not apply | Not exposed by the API yet. When it is: the same version check as publishing |
+| `Course.Publish` | The decision is taken on a loaded aggregate that may be stale | Optimistic version check: `ETag` and a required `If-Match`, compared in the handler and again in the `UPDATE` |
+| `Course.Archive` | Same | Not exposed by the API yet. When it is: the same check |
 | A rule across rows (none today, for example a maximum of drafts per instructor) | Write skew: no single row to lock and no constraint can express it | `SERIALIZABLE`, retrying the whole transaction on `40001` |
 
 `CatalogConcurrencyTests` pins this behavior with two real connections on PostgreSQL 18.3:
@@ -114,6 +115,17 @@ Every index is justified by a query. The primary keys and `UNIQUE` constraints c
 - Readers never wait for writers: they see the last committed row version until the writer commits.
 
 An isolation level above `READ COMMITTED` is only safe with a retry: without one, it turns a silent bug into an error for the user. The read and the write must also share the transaction, since a read in its own transaction has a snapshot of its own.
+
+### Optimistic concurrency
+
+The version of a course is PostgreSQL's `xmin`, mapped as the shadow property `Version` with `IsRowVersion`. It changes with every `UPDATE`, so no write can forget it. `AddCourseVersionToken` only records it in the model: Npgsql skips system columns, so it runs no SQL.
+
+- `GET /courses/{id}` returns it as a strong `ETag`, which the output cache stores with the body.
+- `POST /courses/{id}/publish` requires `If-Match`. Without a specific tag it returns `428`; with a stale one, `412`.
+- The handler compares the tag with the version it loaded, so a stale client gets `412` before any business rule. The `UPDATE` requires that same version, so a write that lands in between matches no row, which `CatalogUnitOfWork` also returns as `412`.
+- A failed check is never retried on the server: the user decided on data that changed.
+
+`xmin` covers the `courses` row only: adding a lesson does not change it, and `CatalogUnitOfWorkTests` pins that. It is enough while the `ETag` describes a body with no lessons in it. If a representation adds lessons, the write that adds one must also touch the course.
 
 ### EF Core mapping
 

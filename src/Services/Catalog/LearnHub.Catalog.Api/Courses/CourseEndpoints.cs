@@ -8,6 +8,7 @@ using LearnHub.Catalog.Api.RateLimiting;
 using LearnHub.Catalog.Application.Courses;
 
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 namespace LearnHub.Catalog.Api.Courses;
 
@@ -56,6 +57,8 @@ public static class CourseEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status412PreconditionFailed)
+            .ProducesProblem(StatusCodes.Status428PreconditionRequired)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         return endpoints;
@@ -106,31 +109,46 @@ public static class CourseEndpoints
 
     private static async Task<Results<Ok<CourseResponse>, NotFound>> GetCourseAsync(
         Guid id,
+        HttpResponse response,
         GetCourseHandler handler,
         CancellationToken cancellationToken)
     {
         var course = await handler.HandleAsync(new GetCourse(id), cancellationToken);
 
-        return course is null
-            ? TypedResults.NotFound()
-            : TypedResults.Ok(new CourseResponse(
-                course.Id,
-                course.InstructorId,
-                course.Title,
-                course.Slug,
-                course.Price,
-                course.Currency,
-                course.Status));
+        if (course is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        // Set on the response, so the output cache stores it with the body it describes.
+        response.Headers.ETag = CourseETag.Format(course.Version);
+
+        return TypedResults.Ok(new CourseResponse(
+            course.Id,
+            course.InstructorId,
+            course.Title,
+            course.Slug,
+            course.Price,
+            course.Currency,
+            course.Status));
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> PublishCourseAsync(
         Guid id,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
         ClaimsPrincipal user,
         PublishCourseHandler handler,
         CancellationToken cancellationToken)
     {
+        if (CourseETag.IsMissing(ifMatch))
+        {
+            return CourseETag.Required.ToProblem();
+        }
+
         // The policy proves the caller is an instructor; whether this course is theirs is the use case's decision.
-        var result = await handler.HandleAsync(new PublishCourse(id, user.GetUserId()), cancellationToken);
+        var command = new PublishCourse(id, user.GetUserId(), CourseETag.ParseVersion(ifMatch));
+
+        var result = await handler.HandleAsync(command, cancellationToken);
 
         return result.IsSuccess
             ? TypedResults.NoContent()

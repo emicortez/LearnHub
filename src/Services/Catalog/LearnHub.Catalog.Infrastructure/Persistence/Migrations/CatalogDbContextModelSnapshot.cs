@@ -49,6 +49,12 @@ namespace LearnHub.Catalog.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("title");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Price", "LearnHub.Catalog.Domain.Courses.Course.Price#Money", b1 =>
                         {
                             b1.IsRequired();

@@ -43,6 +43,11 @@ public static class CourseErrors
     public static readonly Error SlugTaken =
         Error.Conflict("catalog.course.slug_taken", "A course with this title already exists.");
 
+    public static readonly Error VersionMismatch =
+        Error.PreconditionFailed(
+            "catalog.course.version_mismatch",
+            "The course changed since it was read. Read it again before retrying.");
+
     public static readonly Error NotOwner =
         Error.Forbidden("catalog.course.not_owner", "Only the course's instructor can perform this operation.");
 

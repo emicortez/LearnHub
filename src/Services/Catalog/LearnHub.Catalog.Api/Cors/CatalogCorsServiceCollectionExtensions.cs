@@ -24,10 +24,10 @@ public static class CatalogCorsServiceCollectionExtensions
                     .WithOrigins(frontend.Value.AllowedOrigins)
                     // Only what the API uses. No AllowCredentials: Catalog is bearer-only and never reads a cookie.
                     .WithMethods(HttpMethods.Get, HttpMethods.Post)
-                    .WithHeaders("Authorization", "Content-Type", "Idempotency-Key")
-                    // Response headers a script cannot read unless they are exposed: where a created course lives, and
-                    // how long to wait after a 429.
-                    .WithExposedHeaders("Location", "Retry-After")
+                    .WithHeaders("Authorization", "Content-Type", "Idempotency-Key", "If-Match")
+                    // Response headers a script cannot read unless they are exposed: where a created course lives, how
+                    // long to wait after a 429, and the version to send back in If-Match.
+                    .WithExposedHeaders("ETag", "Location", "Retry-After")
                     .SetPreflightMaxAge(TimeSpan.FromMinutes(10))));
 
         return services;

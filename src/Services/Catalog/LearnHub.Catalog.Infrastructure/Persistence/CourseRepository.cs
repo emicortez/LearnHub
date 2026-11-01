@@ -24,4 +24,7 @@ public sealed class CourseRepository(CatalogDbContext context) : ICourseReposito
             .ConfigureAwait(false);
 
     public void Add(Course course) => context.Courses.Add(course);
+
+    public uint GetVersion(Course course) =>
+        context.Entry(course).Property<uint>(CourseConfiguration.Version).CurrentValue;
 }

@@ -20,6 +20,8 @@ public static class ErrorResults
             ErrorType.NotFound => StatusCodes.Status404NotFound,
             ErrorType.Conflict => StatusCodes.Status409Conflict,
             ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+            ErrorType.PreconditionRequired => StatusCodes.Status428PreconditionRequired,
+            ErrorType.PreconditionFailed => StatusCodes.Status412PreconditionFailed,
             _ => throw new ArgumentOutOfRangeException(nameof(error), error.Type, "Unknown error type."),
         };
 

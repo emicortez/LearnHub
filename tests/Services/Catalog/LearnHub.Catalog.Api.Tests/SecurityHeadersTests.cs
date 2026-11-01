@@ -225,5 +225,7 @@ public sealed class SecurityHeadersTests(CatalogApiFactory factory)
             throw new InvalidOperationException("Repository failure.");
 
         public void Add(Course course) => throw new InvalidOperationException("Repository failure.");
+
+        public uint GetVersion(Course course) => throw new NotSupportedException();
     }
 }

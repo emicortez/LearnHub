@@ -84,8 +84,7 @@ public sealed class OutputCachingTests
         // The API cannot add lessons yet, so the lesson is saved directly;
         // the publish itself goes through the API, and it is the write whose eviction is under test.
         await host.AddLessonAsync(id);
-        var publish = await host.Writer.PostAsync(
-            $"/courses/{id}/publish", content: null, TestContext.Current.CancellationToken);
+        var publish = await host.Writer.PublishAsync(id);
         Assert.Equal(HttpStatusCode.NoContent, publish.StatusCode);
 
         var published = await host.GetJsonAsync($"/courses/{id}");
@@ -194,5 +193,7 @@ public sealed class OutputCachingTests
         }
 
         public void Add(Course course) => inner.Add(course);
+
+        public uint GetVersion(Course course) => inner.GetVersion(course);
     }
 }
