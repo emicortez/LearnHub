@@ -127,6 +127,12 @@ The version of a course is PostgreSQL's `xmin`, mapped as the shadow property `V
 
 `xmin` covers the `courses` row only: adding a lesson does not change it, and `CatalogUnitOfWorkTests` pins that. It is enough while the `ETag` describes a body with no lessons in it. If a representation adds lessons, the write that adds one must also touch the course.
 
+### Retries
+
+Catalog retries transient database failures through `EnableRetryOnFailure`: 3 retries, 2 seconds at most between them. Each retry repeats one query or one `SaveChanges`, never a handler, so a decision is never taken again on its own. A `23505`, a stale version and any other permanent failure are not retried.
+
+A retry assumes the failed attempt did not commit. If only the answer was lost, the data is stored and the caller still sees a failure, which `ConnectionRetryTests` pins: an update comes back as a version mismatch, because the first commit changed `xmin`, and an insert as a `pk_courses` violation. Clients must read the course again before deciding it was not saved.
+
 ### EF Core mapping
 
 [`CatalogDbContext`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/CatalogDbContext.cs) maps the `Course` aggregate onto this schema, which stays the contract.
