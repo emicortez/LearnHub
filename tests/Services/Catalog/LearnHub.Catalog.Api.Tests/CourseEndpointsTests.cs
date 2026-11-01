@@ -38,6 +38,8 @@ public sealed class CourseEndpointsTests(CatalogApiFactory factory)
     [Theory]
     [InlineData("", "USD", "catalog.course.title_required")]
     [InlineData("   ", "USD", "catalog.course.title_required")]
+    [InlineData("!!!", "USD", "catalog.course.title_without_letters")]
+    [InlineData("Null\0Character", "USD", "catalog.course.title_invalid_character")]
     [InlineData("Domain-Driven Design", "dollars", "catalog.money.invalid_currency")]
     [InlineData("Domain-Driven Design", "U5D", "catalog.money.invalid_currency")]
     public async Task Create_course_with_invalid_data_returns_400_with_the_error_code(

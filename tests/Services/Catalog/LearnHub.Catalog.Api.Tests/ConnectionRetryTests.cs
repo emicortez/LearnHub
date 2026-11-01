@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Data.Common;
 
 using LearnHub.Catalog.Application;
@@ -12,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using Npgsql;
 
@@ -26,6 +28,7 @@ public sealed class ConnectionRetryTests : IAsyncDisposable
     private readonly CommandRecorder _recorder = new();
     private readonly WriteThatLosesItsAnswer _lostCommit = new();
 
+    private readonly ConcurrentBag<LogLevel> _logs = [];
     private readonly string _connectionString;
     private readonly ServiceProvider _services;
 
@@ -42,7 +45,9 @@ public sealed class ConnectionRetryTests : IAsyncDisposable
             .Build();
 
         _services = new ServiceCollection()
-            .AddLogging()
+            .AddLogging(logging => logging
+                .SetMinimumLevel(LogLevel.Trace)
+                .AddProvider(new RecordingLoggerProvider(_logs)))
             .AddCatalogInfrastructure(configuration)
             .ConfigureDbContext<CatalogDbContext>(options => options.AddInterceptors(_recorder, _lostCommit))
             .BuildServiceProvider();
@@ -77,6 +82,51 @@ public sealed class ConnectionRetryTests : IAsyncDisposable
 
         Assert.Equal(CourseErrors.SlugTaken, saved.Error);
         Assert.Single(_recorder.Commands, command => command.Text.Contains("INSERT", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("40001")] // serialization_failure
+    [InlineData("40P01")] // deadlock_detected
+    public async Task A_failure_the_server_reports_as_transient_is_retried(string sqlState)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var scope = _services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+        await context.Database.ExecuteSqlRawAsync(
+            """
+            CREATE SEQUENCE attempts;
+            CREATE FUNCTION fail_once(state text) RETURNS integer AS $$
+            BEGIN
+                IF nextval('attempts') = 1 THEN
+                    RAISE EXCEPTION 'transient' USING ERRCODE = state;
+                END IF;
+                RETURN 1;
+            END
+            $$ LANGUAGE plpgsql;
+            """,
+            cancellationToken);
+
+        var value = await context.Database
+            .SqlQueryRaw<int>("SELECT fail_once(@state) AS \"Value\"", new NpgsqlParameter("state", sqlState))
+            .ToListAsync(cancellationToken);
+
+        Assert.Equal(1, Assert.Single(value));
+        var attempts = await context.Database
+            .SqlQueryRaw<long>("SELECT last_value AS \"Value\" FROM attempts")
+            .ToListAsync(cancellationToken);
+        Assert.Equal(2, Assert.Single(attempts));
+    }
+
+    [Fact]
+    public async Task A_taken_slug_logs_no_error()
+    {
+        await AddAsync(NewCourse("Handled Conflict"));
+        _logs.Clear();
+
+        var saved = await AddAsync(NewCourse("Handled Conflict"));
+
+        Assert.Equal(CourseErrors.SlugTaken, saved.Error);
+        Assert.DoesNotContain(_logs, level => level >= LogLevel.Warning);
     }
 
     [Fact]
@@ -174,6 +224,27 @@ public sealed class ConnectionRetryTests : IAsyncDisposable
             connection);
 
         return (long)(await command.ExecuteScalarAsync(cancellationToken))!;
+    }
+
+    private sealed class RecordingLoggerProvider(ConcurrentBag<LogLevel> levels) : ILoggerProvider, ILogger
+    {
+        public ILogger CreateLogger(string categoryName) => this;
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) => levels.Add(logLevel);
+
+        public void Dispose()
+        {
+        }
     }
 
     // Fails right after the write, as a connection cut before the answer arrives would. A save of one statement has no

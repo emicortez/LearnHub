@@ -4,6 +4,34 @@ namespace LearnHub.Catalog.Domain.Tests.Courses;
 
 public sealed class CourseTitleTests
 {
+    [Theory]
+    [InlineData("!!!")]
+    [InlineData("---")]
+    [InlineData("\u0301")] // A lone combining accent.
+    [InlineData("\U0001F600")] // An emoji.
+    public void Create_without_a_letter_or_digit_fails(string value)
+    {
+        Assert.Equal(CourseErrors.TitleWithoutLetters, CourseTitle.Create(value).Error);
+    }
+
+    [Theory]
+    [InlineData("C#")]
+    [InlineData("100")]
+    [InlineData("Introducción")]
+    public void Create_with_one_letter_or_digit_succeeds_and_gives_a_slug(string value)
+    {
+        var title = CourseTitle.Create(value);
+
+        Assert.True(title.IsSuccess);
+        Assert.NotEmpty(SlugGenerator.Generate(title.Value.Value));
+    }
+
+    [Fact]
+    public void Create_with_a_null_character_fails()
+    {
+        Assert.Equal(CourseErrors.TitleInvalidCharacter, CourseTitle.Create("Null\0Character").Error);
+    }
+
     [Fact]
     public void Create_trims_the_value()
     {

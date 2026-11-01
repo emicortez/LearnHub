@@ -19,6 +19,12 @@ public static class CourseErrors
     public static readonly Error TitleTooLong =
         Error.Validation("catalog.course.title_too_long", "The course title must be at most 120 characters long.");
 
+    public static readonly Error TitleWithoutLetters =
+        Error.Validation("catalog.course.title_without_letters", "The course title needs at least one letter or digit.");
+
+    public static readonly Error TitleInvalidCharacter =
+        Error.Validation("catalog.course.title_invalid_character", "The course title must not contain a null character.");
+
     public static readonly Error NegativeAmount =
         Error.Validation("catalog.money.negative_amount", "The amount must not be negative.");
 
