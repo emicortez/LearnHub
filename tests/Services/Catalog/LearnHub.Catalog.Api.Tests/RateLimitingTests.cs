@@ -98,7 +98,7 @@ public sealed class RateLimitingTests
 
     private static async Task<HttpResponseMessage> CreateCourseAsync(HttpClient client)
     {
-        var request = new { title = "Rate Limiting in ASP.NET Core", price = 10m, currency = "USD" };
+        var request = new { title = $"Rate Limiting {Guid.NewGuid():N}", price = 10m, currency = "USD" };
         return await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
     }
 

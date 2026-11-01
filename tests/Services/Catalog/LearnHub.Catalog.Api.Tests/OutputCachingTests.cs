@@ -2,9 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
+using LearnHub.Catalog.Application;
 using LearnHub.Catalog.Application.Courses;
 using LearnHub.Catalog.Domain.Courses;
-using LearnHub.Catalog.Infrastructure.Courses;
+using LearnHub.Catalog.Infrastructure.Persistence;
 
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -13,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace LearnHub.Catalog.Api.Tests;
 
-// Each test builds its own host, so it starts with an empty cache and its own counting repository.
+// Each test builds its own host, so it starts with an empty cache and its own read counter.
 public sealed class OutputCachingTests
 {
     [Fact]
@@ -25,7 +26,7 @@ public sealed class OutputCachingTests
         await host.GetJsonAsync($"/courses/{id}");
         await host.GetJsonAsync($"/courses/{id}");
 
-        Assert.Equal(1, host.Repository.Reads);
+        Assert.Equal(1, host.Reads.Count);
     }
 
     [Fact]
@@ -37,7 +38,7 @@ public sealed class OutputCachingTests
         await host.GetJsonAsync("/courses?limit=10");
         await host.GetJsonAsync("/courses?limit=10");
 
-        Assert.Equal(1, host.Repository.Reads);
+        Assert.Equal(1, host.Reads.Count);
     }
 
     [Fact]
@@ -56,7 +57,7 @@ public sealed class OutputCachingTests
         await host.GetJsonAsync("/courses?limit=2");
         await host.GetJsonAsync($"/courses?limit=1&cursor={cursor}");
 
-        Assert.Equal(3, host.Repository.Reads);
+        Assert.Equal(3, host.Reads.Count);
     }
 
     [Fact]
@@ -80,10 +81,9 @@ public sealed class OutputCachingTests
         var draft = await host.GetJsonAsync($"/courses/{id}");
         Assert.Equal("Draft", draft.GetProperty("status").GetString());
 
-        // The API cannot add lessons yet, so the lesson goes on the aggregate the singleton repository holds;
+        // The API cannot add lessons yet, so the lesson is saved directly;
         // the publish itself goes through the API, and it is the write whose eviction is under test.
-        var course = await host.Repository.Inner.GetAsync(id, TestContext.Current.CancellationToken);
-        Assert.True(course!.AddLesson("Introduction", TimeSpan.FromMinutes(5)).IsSuccess);
+        await host.AddLessonAsync(id);
         var publish = await host.Writer.PostAsync(
             $"/courses/{id}/publish", content: null, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, publish.StatusCode);
@@ -104,7 +104,7 @@ public sealed class OutputCachingTests
         Assert.Equal(HttpStatusCode.BadRequest, failed.StatusCode);
         await host.GetJsonAsync("/courses?limit=10");
 
-        Assert.Equal(1, host.Repository.Reads);
+        Assert.Equal(1, host.Reads.Count);
     }
 
     private sealed class CachingHost : IAsyncDisposable
@@ -115,12 +115,13 @@ public sealed class OutputCachingTests
         public CachingHost()
         {
             _host = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-                services.Replace(ServiceDescriptor.Singleton<ICourseRepository>(Repository))));
+                services.Replace(ServiceDescriptor.Scoped<ICourseRepository>(provider =>
+                    new CountingCourseRepository(ActivatorUtilities.CreateInstance<CourseRepository>(provider), Reads)))));
             Client = _host.CreateClient();
             Writer = _host.CreateAuthenticatedClient(Guid.NewGuid());
         }
 
-        public CountingCourseRepository Repository { get; } = new(new InMemoryCourseRepository());
+        public ReadCounter Reads { get; } = new();
 
         // Reads stay anonymous: the output cache skips any request that carries an Authorization header.
         public HttpClient Client { get; }
@@ -134,6 +135,19 @@ public sealed class OutputCachingTests
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
             return (await ReadJsonAsync(response)).GetProperty("id").GetGuid();
+        }
+
+        public async Task AddLessonAsync(Guid courseId)
+        {
+            var cancellationToken = TestContext.Current.CancellationToken;
+            await using var scope = _host.Services.CreateAsyncScope();
+
+            var course = await scope.ServiceProvider.GetRequiredService<ICourseRepository>()
+                .GetAsync(courseId, cancellationToken);
+            Assert.True(course!.AddLesson("Introduction", TimeSpan.FromMinutes(5)).IsSuccess);
+
+            var saved = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(cancellationToken);
+            Assert.True(saved.IsSuccess);
         }
 
         public async Task<JsonElement> GetJsonAsync(string path)
@@ -155,24 +169,27 @@ public sealed class OutputCachingTests
             await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
     }
 
-    // Counts reads that reach the repository; a read served from the output cache never gets here.
-    private sealed class CountingCourseRepository(InMemoryCourseRepository inner) : ICourseRepository
+    private sealed class ReadCounter
     {
-        private int _reads;
+        private int _count;
 
-        public InMemoryCourseRepository Inner => inner;
+        public int Count => Volatile.Read(ref _count);
 
-        public int Reads => Volatile.Read(ref _reads);
+        public void Add() => Interlocked.Increment(ref _count);
+    }
 
+    // Counts reads that reach the repository; a read served from the output cache never gets here.
+    private sealed class CountingCourseRepository(ICourseRepository inner, ReadCounter reads) : ICourseRepository
+    {
         public Task<Course?> GetAsync(Guid id, CancellationToken cancellationToken)
         {
-            Interlocked.Increment(ref _reads);
+            reads.Add();
             return inner.GetAsync(id, cancellationToken);
         }
 
         public Task<IReadOnlyList<Course>> ListAsync(Guid? afterId, int take, CancellationToken cancellationToken)
         {
-            Interlocked.Increment(ref _reads);
+            reads.Add();
             return inner.ListAsync(afterId, take, cancellationToken);
         }
 

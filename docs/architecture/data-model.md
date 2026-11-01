@@ -96,7 +96,7 @@ Every index is justified by a query. The primary keys and `UNIQUE` constraints c
 
 ### Transactions and concurrency
 
-Catalog has no SQL writes yet (the repository arrives in module 6), so this is the contract that repository must keep. One aggregate is saved in one transaction, at PostgreSQL's default `READ COMMITTED`; the isolation level is raised only for a rule that needs it. Transactions stay short: no HTTP call and no user wait inside one. They never cross services (ADR 0002).
+`CatalogUnitOfWork` makes one `SaveChangesAsync` call per operation, so one aggregate is saved in one transaction, at PostgreSQL's default `READ COMMITTED`; the isolation level is raised only for a rule that needs it. Transactions stay short: no HTTP call and no user wait inside one. They never cross services (ADR 0002).
 
 | Operation | Risk | Protection |
 |---|---|---|
@@ -117,7 +117,7 @@ An isolation level above `READ COMMITTED` is only safe with a retry: without one
 
 ### EF Core mapping
 
-[`CatalogDbContext`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/CatalogDbContext.cs) maps the `Course` aggregate onto this schema, which stays the contract. The API does not use it yet.
+[`CatalogDbContext`](../../src/Services/Catalog/LearnHub.Catalog.Infrastructure/Persistence/CatalogDbContext.cs) maps the `Course` aggregate onto this schema, which stays the contract.
 
 | Domain | Column | How |
 |---|---|---|

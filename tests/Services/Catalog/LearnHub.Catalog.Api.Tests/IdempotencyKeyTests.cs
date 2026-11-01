@@ -54,7 +54,7 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
 
     // Keys are scoped to the user: another user's key must neither replay their response nor block the request.
     [Fact]
-    public async Task The_same_key_and_body_from_another_user_creates_a_new_course_instead_of_replaying()
+    public async Task The_same_key_and_body_from_another_user_runs_the_handler_instead_of_replaying()
     {
         var key = NewKey();
         var request = NewRequest();
@@ -62,10 +62,10 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
         var first = await PostAsync(factory.CreateAuthenticatedClient(Guid.NewGuid()), request, key);
         var second = await PostAsync(factory.CreateAuthenticatedClient(Guid.NewGuid()), request, key);
 
+        // The title is taken by now, so the conflict proves the handler ran; a replay would answer 201.
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
-        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         Assert.False(second.Headers.Contains("Idempotent-Replayed"));
-        Assert.NotEqual(first.Headers.Location, second.Headers.Location);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
     }
 
     [Fact]
-    public async Task Without_the_header_every_post_creates_a_course()
+    public async Task Without_the_header_every_post_runs_the_handler()
     {
         var client = factory.CreateAuthenticatedClient(Guid.NewGuid());
         var request = NewRequest();
@@ -105,11 +105,11 @@ public sealed class IdempotencyKeyTests(CatalogApiFactory factory)
         var first = await PostAsync(client, request, key: null);
         var second = await PostAsync(client, request, key: null);
 
+        // The title is taken by now, so the conflict proves the handler ran; a replay would answer 201.
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
-        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
-        Assert.NotEqual(first.Headers.Location, second.Headers.Location);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         Assert.False(second.Headers.Contains("Idempotent-Replayed"));
-        Assert.Equal(2, await CountCoursesTitledAsync(client, request.Title));
+        Assert.Equal(1, await CountCoursesTitledAsync(client, request.Title));
     }
 
     public static TheoryData<string> InvalidKeys => ["   ", new string('k', 256)];
