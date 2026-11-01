@@ -3,8 +3,10 @@ using LearnHub.Catalog.Application.Courses;
 using LearnHub.Catalog.Infrastructure.Persistence;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace LearnHub.Catalog.Infrastructure;
 
@@ -28,12 +30,18 @@ public static class DependencyInjection
         // EF Core's own state, so CatalogDbContext must never hold per-request fields.
         // Each retry repeats one query or one SaveChanges, never the whole handler. Few and short: a request should fail
         // soon when the database is really down, and the default of 6 retries could hold it for over a minute.
-        services.AddDbContextPool<CatalogDbContext>(options => options.UseNpgsql(
-            connectionString,
-            npgsql => npgsql.EnableRetryOnFailure(
-                maxRetryCount: 3,
-                maxRetryDelay: TimeSpan.FromSeconds(2),
-                errorCodesToAdd: null)));
+        // EF Core logs every failed command as an error, even a taken slug that ends in a 409. A failure nobody handled
+        // reaches UnhandledExceptionHandler, which logs it as an error once.
+        services.AddDbContextPool<CatalogDbContext>(options => options
+            .UseNpgsql(
+                connectionString,
+                npgsql => npgsql.EnableRetryOnFailure(
+                    maxRetryCount: 3,
+                    maxRetryDelay: TimeSpan.FromSeconds(2),
+                    errorCodesToAdd: null))
+            .ConfigureWarnings(warnings => warnings.Log(
+                (CoreEventId.SaveChangesFailed, LogLevel.Debug),
+                (RelationalEventId.CommandError, LogLevel.Debug))));
         services.AddScoped<ICourseRepository, CourseRepository>();
         services.AddScoped<ICourseQueries, CourseQueries>();
         services.AddScoped<IUnitOfWork, CatalogUnitOfWork>();

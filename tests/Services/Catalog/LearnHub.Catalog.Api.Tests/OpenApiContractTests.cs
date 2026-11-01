@@ -52,6 +52,29 @@ public sealed class OpenApiContractTests(CatalogApiFactory factory)
         Assert.True(operation.TryGetProperty("summary", out var summary) && summary.GetString()?.Length > 0);
     }
 
+    [Fact]
+    public async Task OpenApi_document_requires_if_match_to_publish()
+    {
+        var document = await GetDocumentAsync();
+
+        var parameters = document.GetProperty("paths").GetProperty("/courses/{id}/publish").GetProperty("post")
+            .GetProperty("parameters").EnumerateArray();
+
+        var ifMatch = Assert.Single(parameters, parameter => parameter.GetProperty("name").GetString() == "If-Match");
+        Assert.True(ifMatch.GetProperty("required").GetBoolean());
+    }
+
+    [Fact]
+    public async Task OpenApi_document_describes_the_etag_of_a_course()
+    {
+        var document = await GetDocumentAsync();
+
+        var response = document.GetProperty("paths").GetProperty("/courses/{id}").GetProperty("get")
+            .GetProperty("responses").GetProperty("200");
+
+        Assert.True(response.GetProperty("headers").TryGetProperty("ETag", out _));
+    }
+
     private async Task<JsonElement> GetDocumentAsync()
     {
         var client = factory.CreateClient();

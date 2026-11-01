@@ -46,10 +46,12 @@ public static class CourseEndpoints
         group.MapGet("/{id:guid}", GetCourseAsync)
             .WithName(GetCourseRoute)
             .WithSummary("Get a course by id")
+            .ReturnsETag()
             .CacheOutput(OutputCachingServiceCollectionExtensions.CoursesPolicy);
 
         group.MapPost("/{id:guid}/publish", PublishCourseAsync)
             .WithSummary("Publish a draft course")
+            .RequiresIfMatch()
             .RequireAuthorization(CatalogPolicies.Instructor)
             .RequireRateLimiting(RateLimitingServiceCollectionExtensions.WritesPolicy)
             .AddEndpointFilter<EvictCoursesCacheFilter>()

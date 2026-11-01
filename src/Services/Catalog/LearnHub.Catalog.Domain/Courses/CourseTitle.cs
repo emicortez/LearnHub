@@ -3,7 +3,8 @@ using LearnHub.SharedKernel;
 namespace LearnHub.Catalog.Domain.Courses;
 
 /// <summary>
-/// The title of a course: non-blank, trimmed, and at most 120 characters long.
+/// The title of a course: non-blank, trimmed, at most 120 characters long, valid Unicode that PostgreSQL can store,
+/// and something a slug can be built from.
 /// </summary>
 public sealed class CourseTitle : ValueObject
 {
@@ -27,10 +28,34 @@ public sealed class CourseTitle : ValueObject
             return CourseErrors.TitleTooLong;
         }
 
+        if (trimmed.Contains('\0', StringComparison.Ordinal) || !IsValidUnicode(trimmed))
+        {
+            return CourseErrors.TitleInvalidCharacter;
+        }
+
+        // Asked of the generator, not of the raw text: it normalizes first, which can make or unmake a letter.
+        if (!SlugGenerator.HasWords(trimmed))
+        {
+            return CourseErrors.TitleWithoutLetters;
+        }
+
         return new CourseTitle(trimmed);
     }
 
     public override string ToString() => Value;
+
+    private static bool IsValidUnicode(string value)
+    {
+        try
+        {
+            _ = value.Normalize();
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
 
     protected override IEnumerable<object?> GetEqualityComponents()
     {
