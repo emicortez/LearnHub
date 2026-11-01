@@ -84,4 +84,22 @@ public sealed class MoneyTests
 
         Assert.NotEqual(first, second);
     }
+
+    [Fact]
+    public void Create_accepts_the_highest_amount_the_schema_stores()
+    {
+        var result = Money.Create(Money.MaxAmount, "USD");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(9999999999.99m, result.Value.Amount);
+    }
+
+    [Fact]
+    public void Create_rejects_an_amount_above_the_highest_one()
+    {
+        var result = Money.Create(Money.MaxAmount + 0.01m, "USD");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(CourseErrors.AmountTooLarge, result.Error);
+    }
 }

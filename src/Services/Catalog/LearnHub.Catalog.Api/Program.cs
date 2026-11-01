@@ -29,7 +29,7 @@ builder.Services.AddCourseViewers();
 
 builder.Services
     .AddCatalogApplication()
-    .AddCatalogInfrastructure();
+    .AddCatalogInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 

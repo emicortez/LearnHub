@@ -22,6 +22,9 @@ public static class CourseErrors
     public static readonly Error NegativeAmount =
         Error.Validation("catalog.money.negative_amount", "The amount must not be negative.");
 
+    public static readonly Error AmountTooLarge =
+        Error.Validation("catalog.money.amount_too_large", "The amount must be at most 9999999999.99.");
+
     public static readonly Error TooManyDecimals =
         Error.Validation("catalog.money.too_many_decimals", "The amount must have at most 2 decimal places.");
 
@@ -36,6 +39,9 @@ public static class CourseErrors
 
     public static readonly Error DurationNotWholeSeconds =
         Error.Validation("catalog.lesson.duration_not_whole_seconds", "The lesson duration must be in whole seconds.");
+
+    public static readonly Error SlugTaken =
+        Error.Conflict("catalog.course.slug_taken", "A course with this title already exists.");
 
     public static readonly Error NotOwner =
         Error.Forbidden("catalog.course.not_owner", "Only the course's instructor can perform this operation.");

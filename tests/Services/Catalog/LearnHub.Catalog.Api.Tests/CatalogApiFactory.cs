@@ -11,12 +11,15 @@ namespace LearnHub.Catalog.Api.Tests;
 /// Rate-limit tests lower it again with <c>WithWebHostBuilder</c>.
 /// Tokens come from <see cref="TestTokens"/>: the issuer and audience are set through the same configuration a real
 /// environment uses, and only the signing key replaces the provider's discovery document.
+/// Each host gets its own database from <see cref="CatalogApiDatabase"/>.
 /// </summary>
 public sealed class CatalogApiFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
+
+        builder.UseSetting("ConnectionStrings:catalog", CatalogApiDatabase.CreateDatabase());
 
         builder.UseSetting("RateLimiting:Writes:TokenLimit", "100000");
         builder.UseSetting("RateLimiting:Writes:TokensPerPeriod", "100000");

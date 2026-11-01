@@ -15,6 +15,7 @@ public sealed class CourseErrorsTests
                 CourseErrors.TitleTooLong,
                 CourseErrors.NegativeAmount,
                 CourseErrors.TooManyDecimals,
+                CourseErrors.AmountTooLarge,
                 CourseErrors.InvalidCurrency,
                 CourseErrors.LessonTitleRequired,
                 CourseErrors.InvalidDuration,
@@ -27,7 +28,8 @@ public sealed class CourseErrorsTests
     public void Invalid_state_transitions_are_conflict_errors()
     {
         Assert.All(
-            [CourseErrors.NotDraft, CourseErrors.NoLessons, CourseErrors.NotPublished, CourseErrors.Archived],
+            [CourseErrors.NotDraft,
+                CourseErrors.SlugTaken, CourseErrors.NoLessons, CourseErrors.NotPublished, CourseErrors.Archived],
             error => Assert.Equal(ErrorType.Conflict, error.Type));
     }
 

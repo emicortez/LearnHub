@@ -7,7 +7,7 @@ namespace LearnHub.Catalog.Api.Tests;
 public sealed class AuthorizationTests(CatalogApiFactory factory)
     : IClassFixture<CatalogApiFactory>
 {
-    private static readonly object CourseRequest = new { title = "Authorization in ASP.NET Core", price = 10m, currency = "USD" };
+    private static object CourseRequest => new { title = $"Authorization {Guid.NewGuid():N}", price = 10m, currency = "USD" };
 
     [Theory]
     [MemberData(nameof(TokensThatCannotWrite))]

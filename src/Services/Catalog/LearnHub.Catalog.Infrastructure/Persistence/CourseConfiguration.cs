@@ -8,6 +8,8 @@ namespace LearnHub.Catalog.Infrastructure.Persistence;
 
 internal sealed class CourseConfiguration : IEntityTypeConfiguration<Course>
 {
+    public const string UniqueSlug = "uq_courses_slug";
+
     public void Configure(EntityTypeBuilder<Course> builder)
     {
         // The domain validates first to return useful errors. These constraints keep the stored data valid whatever
@@ -37,7 +39,7 @@ internal sealed class CourseConfiguration : IEntityTypeConfiguration<Course>
         // The migration creates this as a UNIQUE constraint, which EF Core maps only as an alternate key.
         builder.HasIndex(course => course.Slug)
             .IsUnique()
-            .HasDatabaseName("uq_courses_slug");
+            .HasDatabaseName(UniqueSlug);
 
         // list_published_courses*.sql: only published rows, in the (title, slug) order the keyset cursor compares.
         // The query must repeat status = 'published' literally for the planner to use it.

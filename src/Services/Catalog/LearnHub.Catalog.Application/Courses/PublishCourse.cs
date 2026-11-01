@@ -13,10 +13,9 @@ public sealed record PublishCourse(Guid CourseId, Guid RequestedBy);
 /// Handles <see cref="PublishCourse"/>: loads the aggregate, checks that the requester owns it, and lets it enforce
 /// the publishing rules. Ownership is a business rule, so it lives here rather than in HTTP: it holds whatever
 /// delivers the command, an endpoint today or a message later.
-/// There is no explicit save: the in-memory repository holds the same instance, and from module 6
-/// EF Core's unit of work saves the tracked changes.
+/// The repository has no Update: the context tracks the loaded course, and the unit of work commits the change.
 /// </summary>
-public sealed class PublishCourseHandler(ICourseRepository courses)
+public sealed class PublishCourseHandler(ICourseRepository courses, IUnitOfWork unitOfWork)
 {
     public async Task<Result> HandleAsync(PublishCourse command, CancellationToken cancellationToken)
     {
@@ -30,8 +29,15 @@ public sealed class PublishCourseHandler(ICourseRepository courses)
         }
 
         // Checked before anything changes: someone else's course is never touched.
-        return course.InstructorId == command.RequestedBy
-            ? course.Publish()
-            : CourseErrors.NotOwner;
+        if (course.InstructorId != command.RequestedBy)
+        {
+            return CourseErrors.NotOwner;
+        }
+
+        var published = course.Publish();
+
+        return published.IsSuccess
+            ? await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false)
+            : published;
     }
 }

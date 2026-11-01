@@ -139,7 +139,7 @@ public sealed class CourseViewersHubTests : IAsyncDisposable
     private async Task<Guid> CreateCourseAsync()
     {
         var client = _factory.CreateAuthenticatedClient(Guid.NewGuid());
-        var request = new { title = "Real-time Apps", price = 20m, currency = "USD" };
+        var request = new { title = $"Real-time Apps {Guid.NewGuid():N}", price = 20m, currency = "USD" };
         var response = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);

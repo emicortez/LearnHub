@@ -5,10 +5,13 @@ using LearnHub.SharedKernel;
 namespace LearnHub.Catalog.Domain.Courses;
 
 /// <summary>
-/// A monetary amount: non-negative, with at most 2 decimal places, in a 3-letter currency code.
+/// A monetary amount: from 0 to <see cref="MaxAmount"/>, with at most 2 decimal places, in a 3-letter currency code.
 /// </summary>
 public sealed class Money : ValueObject
 {
+    /// <summary>The highest amount stored; ck_courses_price_range enforces the same limit.</summary>
+    public const decimal MaxAmount = 9999999999.99m;
+
     private Money(decimal amount, string currency)
     {
         Amount = amount;
@@ -24,6 +27,11 @@ public sealed class Money : ValueObject
         if (amount < 0)
         {
             return CourseErrors.NegativeAmount;
+        }
+
+        if (amount > MaxAmount)
+        {
+            return CourseErrors.AmountTooLarge;
         }
 
         if (decimal.Round(amount, 2) != amount)

@@ -46,8 +46,8 @@ public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
         var pages = await ReadAllPagesAsync(client, "/courses?limit=100");
 
         var item = pages.SelectMany(page => page.Raw).Single(raw => raw.GetProperty("id").GetGuid() == created[0]);
-        Assert.Equal("Course 0", item.GetProperty("title").GetString());
-        Assert.Equal("course-0", item.GetProperty("slug").GetString());
+        Assert.StartsWith("Course 0 ", item.GetProperty("title").GetString(), StringComparison.Ordinal);
+        Assert.StartsWith("course-0-", item.GetProperty("slug").GetString(), StringComparison.Ordinal);
         Assert.Equal(10m, item.GetProperty("price").GetDecimal());
         Assert.Equal("USD", item.GetProperty("currency").GetString());
         Assert.Equal("Draft", item.GetProperty("status").GetString());
@@ -101,7 +101,7 @@ public sealed class ListCoursesEndpointTests(CatalogApiFactory factory)
         var ids = new List<Guid>();
         for (var i = 0; i < count; i++)
         {
-            var request = new { title = $"Course {i}", price = 10m, currency = "USD" };
+            var request = new { title = $"Course {i} {Guid.NewGuid():N}", price = 10m, currency = "USD" };
             var response = await client.PostAsJsonAsync("/courses", request, TestContext.Current.CancellationToken);
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
             ids.Add((await ReadJsonAsync(response)).GetProperty("id").GetGuid());
